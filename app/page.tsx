@@ -39,9 +39,7 @@ function HotspotImage({
   return (
     <div
       className="hsWrap"
-      // ✅ 右クリック（保存メニュー）抑止
       onContextMenu={(e) => e.preventDefault()}
-      // ✅ 画像のドラッグ開始も抑止（img側にも入れるが、念のためラッパーにも）
       onDragStart={(e) => e.preventDefault()}
     >
       <img
@@ -50,14 +48,13 @@ function HotspotImage({
         className="hsImg"
         loading={loading}
         draggable={false}
-        // ✅ 右クリック抑止（ブラウザ差分対策）
         onContextMenu={(e) => e.preventDefault()}
       />
 
-      {/* ✅ 画像保護用：ホットスポット以外の操作を吸う（リンクは別レイヤーで生かす） */}
+      {/* 画像保護用：ホットスポット以外の操作を吸う */}
       <div className="imgGuard" aria-hidden />
 
-      {/* ホットスポットレイヤー（リンクだけクリック可） */}
+      {/* ホットスポットレイヤー */}
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => (
           <a
@@ -73,7 +70,6 @@ function HotspotImage({
               width: `${h.width}%`,
               height: `${h.height}%`,
             }}
-            // ✅ リンク自体も右クリック抑止（新規タブは通常クリックでOK）
             onContextMenu={(e) => e.preventDefault()}
             draggable={false}
           />
@@ -84,14 +80,10 @@ function HotspotImage({
         .hsWrap {
           position: relative;
           width: 100%;
-
-          /* ✅ 選択/長押し/コールアウト抑止（ライト層の保存導線を減らす） */
           -webkit-user-select: none;
           user-select: none;
           -webkit-touch-callout: none;
         }
-
-        /* 子要素でも選択されないように */
         .hsWrap * {
           -webkit-user-select: none;
           user-select: none;
@@ -103,28 +95,17 @@ function HotspotImage({
           height: auto;
           display: block;
           align-top: top;
-
-          /* iOS系での変なハイライト抑止 */
           -webkit-user-drag: none;
           user-drag: none;
-
-          /* 画像の長押し保存導線を減らす */
-          pointer-events: none;
+          pointer-events: none; /* 画像自体は触れない */
         }
 
-        /* ✅ 画像の上を覆う透明ガード（ここが本命）
-           - 画像自体は pointer-events:none にして、ガードが操作を吸う
-           - ホットスポットは z-index を上げてクリック可能にする
-        */
         .imgGuard {
           position: absolute;
           inset: 0;
           z-index: 1;
           pointer-events: auto;
-
           background: transparent;
-
-          /* モバイル長押し系を抑止 */
           -webkit-touch-callout: none;
           -webkit-user-select: none;
           user-select: none;
@@ -133,18 +114,18 @@ function HotspotImage({
         .hsLayer {
           position: absolute;
           inset: 0;
-          z-index: 2; /* guardより前 */
-          pointer-events: none; /* レイヤー自体は透過 */
+          z-index: 2;
+          pointer-events: none;
         }
 
         .hsLink {
           position: absolute;
           display: block;
-          pointer-events: auto; /* リンクだけクリック可 */
+          pointer-events: auto;
           cursor: pointer;
           border-radius: 10px;
 
-          /* デバッグしたい時だけON
+          /* デバッグ時のみ
           outline: 2px solid rgba(0, 255, 0, 0.35);
           background: rgba(0, 255, 0, 0.08);
           */
@@ -154,10 +135,6 @@ function HotspotImage({
   );
 }
 
-/**
- * 画面に入ったら1回だけ「ふわっ」と表示するラッパー
- * 既存レイアウトを崩さないため、wrapperは block / width:100% のみ
- */
 function RevealOnView({
   children,
   enabled = true,
@@ -204,18 +181,13 @@ function RevealOnView({
         .reveal {
           width: 100%;
           display: block;
-
-          /* ✅ 下からふわっと上がる */
           opacity: 0;
           transform: translate3d(0, 28px, 0) scale(0.985);
           filter: blur(3px);
-
-          /* ✅ ちょっとゆっくり */
           transition:
             opacity 980ms cubic-bezier(0.2, 0.9, 0.2, 1),
             transform 980ms cubic-bezier(0.2, 0.9, 0.2, 1),
             filter 980ms cubic-bezier(0.2, 0.9, 0.2, 1);
-
           will-change: opacity, transform, filter;
         }
 
@@ -248,11 +220,10 @@ function CountdownHeader() {
   useEffect(() => {
     setMounted(true);
 
-    const PERIOD_SEC = 3 * 24 * 60 * 60; // 3日周期
+    const PERIOD_SEC = 3 * 24 * 60 * 60;
 
     const tick = () => {
       const nowSec = Math.floor(Date.now() / 1000);
-
       let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
       if (remain === 0) remain = PERIOD_SEC;
 
@@ -288,17 +259,14 @@ function CountdownHeader() {
             <span className={`tNum ${jost.className}`}>{dd}</span>
             <i className="tUnit">日</i>
           </div>
-
           <div className="tItem">
             <span className={`tNum ${jost.className}`}>{hh}</span>
             <i className="tUnit">時間</i>
           </div>
-
           <div className="tItem">
             <span className={`tNum ${jost.className}`}>{mm}</span>
             <i className="tUnit">分</i>
           </div>
-
           <div className="tItem">
             <span className={`tNum ${jost.className}`}>{ss}</span>
             <i className="tUnit">秒</i>
@@ -399,17 +367,12 @@ function CountdownHeader() {
 // =====================================================
 export default function LandingPage() {
   const LINK = 'https://anyaku.co.jp/';
+  const HEADER_H = 53;
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
-    '1.webp': [
-      { left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
-    ],
-    '2.webp': [
-      { left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
-    ],
-    '11.webp': [
-      { left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
-    ],
+    '1.webp': [{ left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: LINK, ariaLabel: 'テンプレ集を購入する（画像1）' }],
+    '2.webp': [{ left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: LINK, ariaLabel: 'テンプレ集を購入する（画像2）' }],
+    '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
     '12.webp': [
       { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: LINK, ariaLabel: '利用規約（フッター）' },
       { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: LINK, ariaLabel: 'プライバシーポリシー（フッター）' },
@@ -422,9 +385,13 @@ export default function LandingPage() {
   return (
     <main className="pageRoot">
       <div className="lpContainer">
-        <div className="stickyHeader">
+        {/* ✅ 画面上部に固定（ただし幅は中央のlpContainer幅に合わせる） */}
+        <div className="fixedHeader">
           <CountdownHeader />
         </div>
+
+        {/* ✅ 固定ヘッダーぶんの押し下げ（被り防止） */}
+        <div className="headerSpacer" aria-hidden />
 
         <div className="lpBody">
           {images.map((imgName, index) => {
@@ -460,20 +427,35 @@ export default function LandingPage() {
           overflow: hidden;
         }
 
+        /* PC表示：最大幅 = max(425px, 40vw) かつ 40vwを超えない */
         @media (min-width: 768px) {
           .lpContainer {
             width: clamp(425px, 40vw, 40vw);
           }
         }
 
-        /* ここは要件どおり：lpContainer幅の中で固定 */
-        .stickyHeader {
-          position: sticky;
+        /* ✅ 固定ヘッダー：常に画面上部に固定、かつ中央の幅に収める */
+        .fixedHeader {
+          position: fixed;
           top: 0;
-          z-index: 50;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 9999;
+
           width: 100%;
-          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
           background: #1b2024;
+          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        @media (min-width: 768px) {
+          .fixedHeader {
+            width: clamp(425px, 40vw, 40vw);
+          }
+        }
+
+        .headerSpacer {
+          height: ${HEADER_H}px;
+          width: 100%;
         }
 
         .lpBody {
