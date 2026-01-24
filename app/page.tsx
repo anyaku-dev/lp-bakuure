@@ -1,45 +1,60 @@
 import React from 'react';
 
 export default function LandingPage() {
-  // 画像ファイル名の配列（1.png から 12.png まで）
-  // 順番を変更したい場合はこの配列の並びを変えてください
-  const images = Array.from({ length: 12 }, (_, i) => `${i + 1}.png`);
+  // ==========================================
+  // 画像設定エリア
+  // ==========================================
+  
+  // 固定ヘッダーの画像名
+  // ※もしヘッダー画像のファイル名が違う場合はここを書き換えてください
+  const headerImage = "hover.webp";
+
+  // コンテンツの画像リスト
+  // 全て .webp に変更しました
+  const images = [
+    "1.webp",
+    "2.webp",
+    "3.webp",
+    "4.webp",
+    "5.webp",
+    "6.webp",
+    "7.webp",
+    "8.webp",
+    "9.webp",
+    "10.webp",
+    "11.webp",
+    "12.webp"
+  ];
 
   return (
-    <main className="min-h-screen bg-gray-100 flex justify-center">
+    <main className="min-h-screen bg-gray-100 flex justify-center overflow-x-hidden">
       {/* メインコンテナ
         - w-full: スマホで横幅100%
-        - md:max-w-[45vw]: PC（タブレット以上）で画面幅の45%を最大幅に設定
-        - bg-white: コンテンツ背景色
-        - shadow-2xl: 左右に空間がある際に見やすくするための影
+        - md:max-w-[45vw]: PCで画面幅の45%（45vw）に制限
+        - mx-auto: 中央寄せ
       */}
-      <div className="w-full md:max-w-[45vw] bg-white relative shadow-2xl">
+      <div className="w-full md:max-w-[45vw] bg-white relative shadow-2xl min-h-screen">
         
-        {/* 固定ヘッダーエリア (hover.png)
-          - sticky: スクロールしても親要素(45%幅)の中で上部に張り付く
-          - top-0: 画面の一番上に固定
-          - z-50: 他の画像より手前に表示
-        */}
-        <div className="sticky top-0 z-50 w-full">
-          {/* 画像読み込みエラーを防ぐため標準のimgタグを使用 */}
+        {/* 固定ヘッダーエリア */}
+        <div className="sticky top-0 z-50 w-full bg-white">
           <img 
-            src="/hover.png" 
+            src={`/${headerImage}`}
             alt="Header" 
-            className="w-full h-auto block" 
+            className="w-full h-auto block"
+            style={{ minHeight: '50px', background: '#f0f0f0' }} 
           />
         </div>
 
-        {/* メインコンテンツエリア (1.png 〜 12.png)
-          - flex-col: 縦並び
-        */}
+        {/* コンテンツエリア */}
         <div className="flex flex-col w-full">
           {images.map((imgName, index) => (
             <div key={index} className="w-full">
               <img
                 src={`/${imgName}`}
-                alt={`Content ${index + 1}`}
-                className="w-full h-auto block align-top" // align-topで画像間の隙間を排除
-                loading="lazy" // 2枚目以降は遅延読み込みでパフォーマンス確保
+                alt={`Slide ${index + 1}`}
+                className="w-full h-auto block align-top"
+                loading={index === 0 ? "eager" : "lazy"}
+                style={{ minHeight: '100px', background: '#fafafa' }} 
               />
             </div>
           ))}
