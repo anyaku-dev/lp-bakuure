@@ -20,38 +20,36 @@ const zenKaku = Zen_Kaku_Gothic_New({
 // CountdownHeader（左：SVG完全置換 / 右：完全レスポンシブ）
 // =====================================================
 function CountdownHeader() {
-  const targetDate = useMemo(() => new Date('2026-02-14T23:59:59'), []);
+  const targetDate = useMemo(() => new Date('2026-02-14T23:59:59'), []); // 使わないが残してOK
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-  setMounted(true);
+    setMounted(true);
 
-  const PERIOD_SEC = 3 * 24 * 60 * 60; // 3日周期
+    const PERIOD_SEC = 3 * 24 * 60 * 60; // 3日周期
 
-  const tick = () => {
-    const nowMs = Date.now();
-    const nowSec = Math.floor(nowMs / 1000);
+    const tick = () => {
+      const nowSec = Math.floor(Date.now() / 1000);
 
-    // 3日周期の「残り秒数」
-    let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
+      // 3日周期の「残り秒数」
+      let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
 
-    // 0になった瞬間に「3日」に戻す
-    if (remain === 0) remain = PERIOD_SEC;
+      // 0になった瞬間に「3日」に戻す
+      if (remain === 0) remain = PERIOD_SEC;
 
-    const days = Math.floor(remain / (24 * 60 * 60));
-    const hours = Math.floor((remain % (24 * 60 * 60)) / (60 * 60));
-    const minutes = Math.floor((remain % (60 * 60)) / 60);
-    const seconds = remain % 60;
+      const days = Math.floor(remain / (24 * 60 * 60));
+      const hours = Math.floor((remain % (24 * 60 * 60)) / (60 * 60));
+      const minutes = Math.floor((remain % (60 * 60)) / 60);
+      const seconds = remain % 60;
 
-    setTimeLeft({ days, hours, minutes, seconds });
-  };
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
 
-  tick();
-  const id = window.setInterval(tick, 1000);
-  return () => window.clearInterval(id);
-}, []);
-
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   if (!mounted) return <div style={{ height: 53, background: '#1B2024' }} />;
 
@@ -104,6 +102,7 @@ function CountdownHeader() {
           overflow: hidden;
         }
 
+        /* ここはヘッダー単体として 425 を基準にしてOK（LP本体の幅制御は下でやる） */
         .countdownInner {
           width: 100%;
           max-width: 425px;
@@ -115,25 +114,25 @@ function CountdownHeader() {
         }
 
         /* 左SVG */
-.countdownBadge {
-  flex: 0 0 auto;
-  height: 53px;
-  width: clamp(140px, 36vw, 150px);
-  overflow: hidden;
+        .countdownBadge {
+          flex: 0 0 auto;
+          height: 53px;
+          width: clamp(140px, 36vw, 150px);
+          overflow: hidden;
 
-  /* ベースライン由来の微妙な余白を潰す */
-  line-height: 0;
-}
+          /* ベースライン由来の微妙な余白を潰す */
+          line-height: 0;
+        }
 
-.badgeSvg {
-  width: 100%;
-  height: 100%;
-  display: block;
+        .badgeSvg {
+          width: 100%;
+          height: 100%;
+          display: block;
 
-  /* これが本命：上下の余白が出る比率差を“埋める” */
-  object-fit: cover;
-  object-position: center;
-}
+          /* 上下の黒余白が出る比率差を“埋める” */
+          object-fit: cover;
+          object-position: center;
+        }
 
         /* 右タイマー */
         .timer {
@@ -213,7 +212,11 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 flex justify-center overflow-x-hidden">
-      <div className="w-full md:max-w-[45vw] bg-white relative shadow-2xl min-h-screen">
+      {/* ✅ 要件：PC表示の最大幅 = max(425px, 30vw)（30vwを上限にしつつ425pxを下限） */}
+      <div
+        className="w-full bg-white relative shadow-2xl min-h-screen"
+        style={{ maxWidth: 'max(425px, 30vw)' }}
+      >
         {/* 固定ヘッダー */}
         <div className="sticky top-0 z-50 w-full shadow-lg">
           <CountdownHeader />
