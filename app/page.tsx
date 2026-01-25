@@ -56,11 +56,12 @@ function HotspotImage({
     <div className="hsWrap">
       <img {...imgProps} />
 
+      {/* ホットスポットレイヤー（画像の上に重ねる） */}
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => {
           const isInternal = h.href.startsWith('/');
 
-          const commonStyle: React.CSSProperties = {
+          const style: React.CSSProperties = {
             left: `${h.left}%`,
             top: `${h.top}%`,
             width: `${h.width}%`,
@@ -68,13 +69,7 @@ function HotspotImage({
           };
 
           return isInternal ? (
-            <Link
-              key={idx}
-              href={h.href}
-              aria-label={h.ariaLabel}
-              className="hsLink"
-              style={commonStyle}
-            />
+            <Link key={idx} href={h.href} aria-label={h.ariaLabel} className="hsLink" style={style} />
           ) : (
             <a
               key={idx}
@@ -83,7 +78,7 @@ function HotspotImage({
               rel="noopener noreferrer"
               aria-label={h.ariaLabel}
               className="hsLink"
-              style={commonStyle}
+              style={style}
             />
           );
         })}
@@ -102,22 +97,23 @@ function HotspotImage({
           -webkit-user-drag: none;
         }
 
-        /* ✅ iOS/アプリ内ブラウザ対策：必ず画像より上に */
+        /* ✅ 画像より上に必ず出す */
         .hsLayer {
           position: absolute;
           inset: 0;
           pointer-events: none;
-          z-index: 5;
+          z-index: 10;
         }
+
+        /* ✅ リンクはタップ強め（iOS/アプリ内ブラウザ対策） */
         .hsLink {
           position: absolute;
           display: block;
           pointer-events: auto;
           cursor: pointer;
           border-radius: 10px;
-          z-index: 6;
+          z-index: 11;
 
-          /* ✅ iOSのタップ判定を強める */
           -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
           touch-action: manipulation;
         }
@@ -127,9 +123,7 @@ function HotspotImage({
 }
 
 /**
- * ✅ 強力版 Reveal
- * - IntersectionObserverが壊れても 1.2秒で強制表示
- * - アプリ内ブラウザの“スクロール検知死”を根絶
+ * ✅ 強力版 Reveal（壊れても必ず表示）
  */
 function RevealOnView({
   children,
@@ -154,7 +148,7 @@ function RevealOnView({
 
     let timeoutId: number | null = null;
 
-    // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
+    // ✅ 1.2秒で強制表示（LINE等のIO不安定対策）
     timeoutId = window.setTimeout(() => {
       setShown(true);
     }, 1200);
@@ -193,8 +187,6 @@ function RevealOnView({
         .reveal {
           width: 100%;
           display: block;
-
-          /* ✅ “見えないまま”を作らないため、最悪でも後で必ず isShown になる */
           opacity: 0;
           transform: translate3d(0, 14px, 0);
           transition:
@@ -358,59 +350,6 @@ function CountdownHeader() {
   );
 }
 
-/** ✅ “確実に動く”本物フッターリンク（画像ホットスポットに依存しない） */
-function RealFooterLinks() {
-  return (
-    <footer className="realFooter">
-      <nav className="realFooterNav" aria-label="フッターナビゲーション">
-        <Link className="realFooterLink" href="/terms">
-          利用規約
-        </Link>
-        <Link className="realFooterLink" href="/privacy">
-          プライバシーポリシー
-        </Link>
-        <Link className="realFooterLink" href="/company">
-          運営会社
-        </Link>
-      </nav>
-
-      <style jsx>{`
-        .realFooter {
-          width: 100%;
-          background: #0a0a0a;
-          padding: 18px 16px 22px;
-          display: flex;
-          justify-content: center;
-        }
-        .realFooterNav {
-          width: 100%;
-          max-width: 425px;
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-        }
-        .realFooterLink {
-          color: rgba(255, 255, 255, 0.82);
-          font-size: 13px;
-          text-decoration: none;
-          padding: 10px 10px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          flex: 1 1 0;
-          text-align: center;
-
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-        }
-        .realFooterLink:active {
-          transform: translateY(1px);
-        }
-      `}</style>
-    </footer>
-  );
-}
-
 export default function LandingPage() {
   const PURCHASE_LINK = 'https://anyaku.co.jp/';
 
@@ -420,11 +359,11 @@ export default function LandingPage() {
     '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' }],
     '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
 
-    // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
+    // ✅ 画像内フッター文字にリンクが効く（=画像の上に重ねる）
     '12.webp': [
-      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
-      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
-      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
+      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（フッター）' },
+      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（フッター）' },
+      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（フッター）' },
     ],
   };
 
@@ -442,8 +381,6 @@ export default function LandingPage() {
         <div className="lpBody">
           {images.map((imgName, index) => {
             const hs = hotspotsByFile[imgName] ?? [];
-
-            // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
             const shouldReveal = index >= 1;
             const isSecond = index === 1;
 
@@ -465,9 +402,6 @@ export default function LandingPage() {
               </React.Fragment>
             );
           })}
-
-          {/* ✅ “確実に動く”フッターリンクを追加（画像フッターの不安定さを根絶） */}
-          <RealFooterLinks />
         </div>
       </div>
 
