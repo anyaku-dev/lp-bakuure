@@ -37,7 +37,6 @@ function HotspotImage({
   loading?: 'eager' | 'lazy';
   fetchPriority?: 'high' | 'low' | 'auto';
 }) {
-  // ✅ ts-expect-error を使わず、安全に props を合成して付与
   const imgProps: React.ImgHTMLAttributes<HTMLImageElement> & {
     fetchPriority?: 'high' | 'low' | 'auto';
   } = {
@@ -84,6 +83,9 @@ function HotspotImage({
           width: 100%;
           height: auto;
           display: block;
+          -webkit-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
         }
         .hsLayer {
           position: absolute;
@@ -102,14 +104,22 @@ function HotspotImage({
   );
 }
 
+/**
+ * ✅ インアプリブラウザ対策：
+ * - IntersectionObserver が発火しない/遅延する環境でも「必ず表示」する
+ * - 一定時間経過で強制表示（安全フォールバック）
+ */
 function RevealOnView({
   children,
   enabled = true,
   rootMargin = '0px 0px -10% 0px',
+  // フォールバック：この時間を過ぎたら必ず表示（インアプリでの未発火対策）
+  forceShowAfterMs = 1800,
 }: {
   children: React.ReactNode;
   enabled?: boolean;
   rootMargin?: string;
+  forceShowAfterMs?: number;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [shown, setShown] = useState(!enabled);
@@ -120,9 +130,20 @@ function RevealOnView({
     const el = ref.current;
     if (!el) return;
 
+    let cancelled = false;
+
+    const forceTimer = window.setTimeout(() => {
+      if (!cancelled) setShown(true);
+    }, forceShowAfterMs);
+
+    // IntersectionObserver が無い場合は即表示
     if (typeof IntersectionObserver === 'undefined') {
       setShown(true);
-      return;
+      window.clearTimeout(forceTimer);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(forceTimer);
+      };
     }
 
     const obs = new IntersectionObserver(
@@ -131,14 +152,41 @@ function RevealOnView({
         if (entry && entry.isIntersecting) {
           setShown(true);
           obs.disconnect();
+          window.clearTimeout(forceTimer);
         }
       },
       { threshold: 0.12, rootMargin }
     );
 
     obs.observe(el);
-    return () => obs.disconnect();
-  }, [enabled, rootMargin]);
+
+    // ✅ iOS/LINE内ブラウザ：初回だけ発火しないことがあるので再判定を入れる
+    const rafId = window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (cancelled) return;
+        // すでに表示済みなら何もしない
+        if (shown) return;
+
+        const rect = el.getBoundingClientRect();
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        const inView = rect.top < vh * 0.92 && rect.bottom > vh * 0.08;
+
+        if (inView) {
+          setShown(true);
+          obs.disconnect();
+          window.clearTimeout(forceTimer);
+        }
+      }, 80);
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(forceTimer);
+      window.cancelAnimationFrame(rafId);
+      obs.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, rootMargin, forceShowAfterMs]);
 
   return (
     <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
@@ -355,7 +403,17 @@ export default function LandingPage() {
               </div>
             );
 
-            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
+            return (
+              <React.Fragment key={imgName}>
+                {shouldReveal ? (
+                  <RevealOnView enabled forceShowAfterMs={1800}>
+                    {content}
+                  </RevealOnView>
+                ) : (
+                  content
+                )}
+              </React.Fragment>
+            );
           })}
         </div>
       </div>
