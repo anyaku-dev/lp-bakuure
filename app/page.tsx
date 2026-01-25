@@ -37,20 +37,24 @@ function HotspotImage({
   loading?: 'eager' | 'lazy';
   fetchPriority?: 'high' | 'low' | 'auto';
 }) {
+  // ✅ ts-expect-error を使わず、安全に props を合成して付与
+  const imgProps: React.ImgHTMLAttributes<HTMLImageElement> & {
+    fetchPriority?: 'high' | 'low' | 'auto';
+  } = {
+    src,
+    alt,
+    className: 'hsImg',
+    loading,
+    draggable: false,
+    decoding: 'async',
+    onContextMenu: (e) => e.preventDefault(),
+    onDragStart: (e) => e.preventDefault(),
+    ...(fetchPriority ? { fetchPriority } : {}),
+  };
+
   return (
     <div className="hsWrap">
-      <img
-        src={src}
-        alt={alt}
-        className="hsImg"
-        loading={loading}
-        draggable={false}
-        onContextMenu={(e) => e.preventDefault()}
-        onDragStart={(e) => e.preventDefault()}
-        // @ts-expect-error
-        fetchPriority={fetchPriority}
-        decoding="async"
-      />
+      <img {...imgProps} />
 
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => (
@@ -234,8 +238,6 @@ function CountdownHeader() {
           background: #1b2024;
           overflow: hidden;
         }
-
-        /* ✅ max-width固定をやめて、親（fixedHeader）の幅に100%で追従 */
         .countdownInner {
           width: 100%;
           height: 53px;
@@ -244,7 +246,6 @@ function CountdownHeader() {
           background: #1b2024;
           overflow: hidden;
         }
-
         .countdownBadge {
           flex: 0 0 auto;
           height: 53px;
@@ -252,7 +253,6 @@ function CountdownHeader() {
           overflow: hidden;
           line-height: 0;
         }
-
         .badgeSvg {
           width: 100%;
           height: 100%;
@@ -260,7 +260,6 @@ function CountdownHeader() {
           object-fit: cover;
           object-position: center;
         }
-
         .timer {
           flex: 1 1 auto;
           min-width: 0;
@@ -273,7 +272,6 @@ function CountdownHeader() {
           padding-right: clamp(10px, 3vw, 16px);
           overflow: hidden;
         }
-
         .tItem {
           display: inline-flex;
           align-items: baseline;
@@ -281,7 +279,6 @@ function CountdownHeader() {
           white-space: nowrap;
           min-width: 0;
         }
-
         .tNum {
           color: #fff12f;
           font-weight: 500;
@@ -290,7 +287,6 @@ function CountdownHeader() {
           letter-spacing: 0.8px;
           font-size: clamp(24px, 8vw, 34.2px);
         }
-
         .tUnit {
           color: #fff12f;
           font-style: normal;
@@ -299,7 +295,6 @@ function CountdownHeader() {
           white-space: nowrap;
           font-size: clamp(9px, 2.7vw, 11px);
         }
-
         @media (max-width: 380px) {
           .timer {
             gap: 10px;
@@ -336,7 +331,6 @@ export default function LandingPage() {
   return (
     <main className="pageRoot">
       <div className="lpContainer">
-        {/* ✅ 上部固定（lpContainer と同じ幅で中央に固定） */}
         <div className="fixedHeader">
           <CountdownHeader />
         </div>
@@ -356,7 +350,7 @@ export default function LandingPage() {
                   alt={`Slide ${index + 1}`}
                   hotspots={hs}
                   loading={index === 0 || isSecond ? 'eager' : 'lazy'}
-                  fetchPriority={index === 0 || isSecond ? 'high' : 'auto'}
+                  fetchPriority={index === 0 || isSecond ? 'high' : undefined}
                 />
               </div>
             );
@@ -390,20 +384,16 @@ export default function LandingPage() {
           }
         }
 
-        /* ✅ ここが本命：fixed でも「コンテナ幅」で固定する */
         .fixedHeader {
           position: fixed;
           top: 0;
           z-index: 999;
           background: #1b2024;
           box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
-
-          /* モバイル: そのまま画面幅 */
           left: 0;
           width: 100%;
         }
 
-        /* PC時: lpContainer と同じ幅で中央寄せ */
         @media (min-width: 768px) {
           .fixedHeader {
             left: 50%;
