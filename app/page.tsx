@@ -347,59 +347,6 @@ function CountdownHeader() {
   );
 }
 
-/** ✅ “確実に動く”本物フッターリンク（画像ホットスポットに依存しない） */
-function RealFooterLinks() {
-  return (
-    <footer className="realFooter">
-      <nav className="realFooterNav" aria-label="フッターナビゲーション">
-        <a className="realFooterLink" href="/terms">
-          利用規約
-        </a>
-        <a className="realFooterLink" href="/privacy">
-          プライバシーポリシー
-        </a>
-        <a className="realFooterLink" href="/company">
-          運営会社
-        </a>
-      </nav>
-
-      <style jsx>{`
-        .realFooter {
-          width: 100%;
-          background: #0a0a0a;
-          padding: 18px 16px 22px;
-          display: flex;
-          justify-content: center;
-        }
-        .realFooterNav {
-          width: 100%;
-          max-width: 425px;
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-        }
-        .realFooterLink {
-          color: rgba(255, 255, 255, 0.82);
-          font-size: 13px;
-          text-decoration: none;
-          padding: 10px 10px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          flex: 1 1 0;
-          text-align: center;
-
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-        }
-        .realFooterLink:active {
-          transform: translateY(1px);
-        }
-      `}</style>
-    </footer>
-  );
-}
-
 export default function LandingPage() {
   const PURCHASE_LINK = 'https://anyaku.co.jp/';
 
@@ -456,9 +403,6 @@ export default function LandingPage() {
 
             return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
           })}
-
-          {/* ✅ “確実に動く”フッターリンクを追加（画像フッターの不安定さを根絶） */}
-          <RealFooterLinks />
         </div>
       </div>
 
