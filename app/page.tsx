@@ -101,10 +101,13 @@ function HotspotImage({
           user-select: none;
           -webkit-user-drag: none;
         }
+
+        /* ✅ iOS/アプリ内ブラウザ対策：必ず画像より上に */
         .hsLayer {
           position: absolute;
           inset: 0;
           pointer-events: none;
+          z-index: 5;
         }
         .hsLink {
           position: absolute;
@@ -112,16 +115,26 @@ function HotspotImage({
           pointer-events: auto;
           cursor: pointer;
           border-radius: 10px;
+          z-index: 6;
+
+          /* ✅ iOSのタップ判定を強める */
+          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+          touch-action: manipulation;
         }
       `}</style>
     </div>
   );
 }
 
+/**
+ * ✅ 強力版 Reveal
+ * - IntersectionObserverが壊れても 1.2秒で強制表示
+ * - アプリ内ブラウザの“スクロール検知死”を根絶
+ */
 function RevealOnView({
   children,
   enabled = true,
-  rootMargin = '0px 0px -10% 0px',
+  rootMargin = '200px 0px 200px 0px',
 }: {
   children: React.ReactNode;
   enabled?: boolean;
@@ -134,10 +147,21 @@ function RevealOnView({
     if (!enabled) return;
 
     const el = ref.current;
-    if (!el) return;
+    if (!el) {
+      setShown(true);
+      return;
+    }
+
+    let timeoutId: number | null = null;
+
+    // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
+    timeoutId = window.setTimeout(() => {
+      setShown(true);
+    }, 1200);
 
     if (typeof IntersectionObserver === 'undefined') {
       setShown(true);
+      if (timeoutId) window.clearTimeout(timeoutId);
       return;
     }
 
@@ -147,13 +171,18 @@ function RevealOnView({
         if (entry && entry.isIntersecting) {
           setShown(true);
           obs.disconnect();
+          if (timeoutId) window.clearTimeout(timeoutId);
         }
       },
-      { threshold: 0.12, rootMargin }
+      { threshold: 0.01, rootMargin }
     );
 
     obs.observe(el);
-    return () => obs.disconnect();
+
+    return () => {
+      obs.disconnect();
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
   }, [enabled, rootMargin]);
 
   return (
@@ -164,16 +193,18 @@ function RevealOnView({
         .reveal {
           width: 100%;
           display: block;
+
+          /* ✅ “見えないまま”を作らないため、最悪でも後で必ず isShown になる */
           opacity: 0;
-          transform: translate3d(0, 28px, 0) scale(0.985);
+          transform: translate3d(0, 14px, 0);
           transition:
-            opacity 920ms cubic-bezier(0.2, 0.9, 0.2, 1),
-            transform 920ms cubic-bezier(0.2, 0.9, 0.2, 1);
+            opacity 520ms cubic-bezier(0.2, 0.9, 0.2, 1),
+            transform 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
           will-change: opacity, transform;
         }
         .reveal.isShown {
           opacity: 1;
-          transform: translate3d(0, 0, 0) scale(1);
+          transform: translate3d(0, 0, 0);
         }
         @media (prefers-reduced-motion: reduce) {
           .reveal {
@@ -327,27 +358,73 @@ function CountdownHeader() {
   );
 }
 
+/** ✅ “確実に動く”本物フッターリンク（画像ホットスポットに依存しない） */
+function RealFooterLinks() {
+  return (
+    <footer className="realFooter">
+      <nav className="realFooterNav" aria-label="フッターナビゲーション">
+        <Link className="realFooterLink" href="/terms">
+          利用規約
+        </Link>
+        <Link className="realFooterLink" href="/privacy">
+          プライバシーポリシー
+        </Link>
+        <Link className="realFooterLink" href="/company">
+          運営会社
+        </Link>
+      </nav>
+
+      <style jsx>{`
+        .realFooter {
+          width: 100%;
+          background: #0a0a0a;
+          padding: 18px 16px 22px;
+          display: flex;
+          justify-content: center;
+        }
+        .realFooterNav {
+          width: 100%;
+          max-width: 425px;
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+        }
+        .realFooterLink {
+          color: rgba(255, 255, 255, 0.82);
+          font-size: 13px;
+          text-decoration: none;
+          padding: 10px 10px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          flex: 1 1 0;
+          text-align: center;
+
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        .realFooterLink:active {
+          transform: translateY(1px);
+        }
+      `}</style>
+    </footer>
+  );
+}
+
 export default function LandingPage() {
   const PURCHASE_LINK = 'https://anyaku.co.jp/';
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
-    '1.webp': [
-      { left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
-    ],
-    '2.webp': [
-      { left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
-    ],
-    '9.webp': [
-      { left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' },
-    ],
-    '11.webp': [
-      { left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
-    ],
+    '1.webp': [{ left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' }],
+    '2.webp': [{ left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' }],
+    '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' }],
+    '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
+
+    // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
     '12.webp': [
-      // ✅ それぞれ別ページへ
-      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（フッター）' },
-      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（フッター）' },
-      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（フッター）' },
+      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
+      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
     ],
   };
 
@@ -365,6 +442,8 @@ export default function LandingPage() {
         <div className="lpBody">
           {images.map((imgName, index) => {
             const hs = hotspotsByFile[imgName] ?? [];
+
+            // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
             const shouldReveal = index >= 1;
             const isSecond = index === 1;
 
@@ -380,8 +459,15 @@ export default function LandingPage() {
               </div>
             );
 
-            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
+            return (
+              <React.Fragment key={imgName}>
+                {shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}
+              </React.Fragment>
+            );
           })}
+
+          {/* ✅ “確実に動く”フッターリンクを追加（画像フッターの不安定さを根絶） */}
+          <RealFooterLinks />
         </div>
       </div>
 
