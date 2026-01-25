@@ -352,14 +352,14 @@ export default function LandingPage() {
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
     '1.webp': [
-      { left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
+      { left: 9, top: 82, width: 82, height: 13, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
     ],
     '2.webp': [
-      { left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
+      { left: 9, top: 78.5, width: 82, height: 11, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
     ],
     '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' }],
     '11.webp': [
-      { left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
+      { left: 9, top: 82.5, width: 82, height: 12, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
     ],
 
     // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
