@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
 
 const jost = Jost({
@@ -58,32 +57,22 @@ function HotspotImage({
 
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => {
-          const isInternal = h.href.startsWith('/');
+          const isExternal = /^https?:\/\//.test(h.href);
 
-          const commonStyle: React.CSSProperties = {
-            left: `${h.left}%`,
-            top: `${h.top}%`,
-            width: `${h.width}%`,
-            height: `${h.height}%`,
-          };
-
-          return isInternal ? (
-            <Link
-              key={idx}
-              href={h.href}
-              aria-label={h.ariaLabel}
-              className="hsLink"
-              style={commonStyle}
-            />
-          ) : (
+          return (
             <a
               key={idx}
               href={h.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={isExternal ? '_blank' : undefined}
+              rel={isExternal ? 'noopener noreferrer' : undefined}
               aria-label={h.ariaLabel}
               className="hsLink"
-              style={commonStyle}
+              style={{
+                left: `${h.left}%`,
+                top: `${h.top}%`,
+                width: `${h.width}%`,
+                height: `${h.height}%`,
+              }}
             />
           );
         })}
@@ -107,7 +96,7 @@ function HotspotImage({
           position: absolute;
           inset: 0;
           pointer-events: none;
-          z-index: 10;
+          z-index: 5;
         }
         .hsLink {
           position: absolute;
@@ -115,7 +104,7 @@ function HotspotImage({
           pointer-events: auto;
           cursor: pointer;
           border-radius: 10px;
-          z-index: 11;
+          z-index: 6;
 
           /* ✅ iOSのタップ判定を強める */
           -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
@@ -358,16 +347,75 @@ function CountdownHeader() {
   );
 }
 
+/** ✅ “確実に動く”本物フッターリンク（画像ホットスポットに依存しない） */
+function RealFooterLinks() {
+  return (
+    <footer className="realFooter">
+      <nav className="realFooterNav" aria-label="フッターナビゲーション">
+        <a className="realFooterLink" href="/terms">
+          利用規約
+        </a>
+        <a className="realFooterLink" href="/privacy">
+          プライバシーポリシー
+        </a>
+        <a className="realFooterLink" href="/company">
+          運営会社
+        </a>
+      </nav>
+
+      <style jsx>{`
+        .realFooter {
+          width: 100%;
+          background: #0a0a0a;
+          padding: 18px 16px 22px;
+          display: flex;
+          justify-content: center;
+        }
+        .realFooterNav {
+          width: 100%;
+          max-width: 425px;
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+        }
+        .realFooterLink {
+          color: rgba(255, 255, 255, 0.82);
+          font-size: 13px;
+          text-decoration: none;
+          padding: 10px 10px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          flex: 1 1 0;
+          text-align: center;
+
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        .realFooterLink:active {
+          transform: translateY(1px);
+        }
+      `}</style>
+    </footer>
+  );
+}
+
 export default function LandingPage() {
   const PURCHASE_LINK = 'https://anyaku.co.jp/';
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
-    '1.webp': [{ left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' }],
-    '2.webp': [{ left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' }],
+    '1.webp': [
+      { left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
+    ],
+    '2.webp': [
+      { left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
+    ],
     '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' }],
-    '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
+    '11.webp': [
+      { left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
+    ],
 
-    // ✅ 画像フッターの文字上にリンクを乗せる（ここだけで完結）
+    // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
     '12.webp': [
       { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
       { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
@@ -406,12 +454,11 @@ export default function LandingPage() {
               </div>
             );
 
-            return (
-              <React.Fragment key={imgName}>
-                {shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}
-              </React.Fragment>
-            );
+            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
           })}
+
+          {/* ✅ “確実に動く”フッターリンクを追加（画像フッターの不安定さを根絶） */}
+          <RealFooterLinks />
         </div>
       </div>
 
