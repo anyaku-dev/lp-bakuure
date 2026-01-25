@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
 
 const jost = Jost({
@@ -56,22 +57,36 @@ function HotspotImage({
       <img {...imgProps} />
 
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
-        {hotspots.map((h, idx) => (
-          <a
-            key={idx}
-            href={h.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={h.ariaLabel}
-            className="hsLink"
-            style={{
-              left: `${h.left}%`,
-              top: `${h.top}%`,
-              width: `${h.width}%`,
-              height: `${h.height}%`,
-            }}
-          />
-        ))}
+        {hotspots.map((h, idx) => {
+          const isInternal = h.href.startsWith('/');
+
+          const commonStyle: React.CSSProperties = {
+            left: `${h.left}%`,
+            top: `${h.top}%`,
+            width: `${h.width}%`,
+            height: `${h.height}%`,
+          };
+
+          return isInternal ? (
+            <Link
+              key={idx}
+              href={h.href}
+              aria-label={h.ariaLabel}
+              className="hsLink"
+              style={commonStyle}
+            />
+          ) : (
+            <a
+              key={idx}
+              href={h.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={h.ariaLabel}
+              className="hsLink"
+              style={commonStyle}
+            />
+          );
+        })}
       </div>
 
       <style jsx>{`
@@ -83,9 +98,8 @@ function HotspotImage({
           width: 100%;
           height: auto;
           display: block;
-          -webkit-user-select: none;
           user-select: none;
-          -webkit-touch-callout: none;
+          -webkit-user-drag: none;
         }
         .hsLayer {
           position: absolute;
@@ -104,22 +118,14 @@ function HotspotImage({
   );
 }
 
-/**
- * ✅ インアプリブラウザ対策：
- * - IntersectionObserver が発火しない/遅延する環境でも「必ず表示」する
- * - 一定時間経過で強制表示（安全フォールバック）
- */
 function RevealOnView({
   children,
   enabled = true,
   rootMargin = '0px 0px -10% 0px',
-  // フォールバック：この時間を過ぎたら必ず表示（インアプリでの未発火対策）
-  forceShowAfterMs = 1800,
 }: {
   children: React.ReactNode;
   enabled?: boolean;
   rootMargin?: string;
-  forceShowAfterMs?: number;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [shown, setShown] = useState(!enabled);
@@ -130,20 +136,9 @@ function RevealOnView({
     const el = ref.current;
     if (!el) return;
 
-    let cancelled = false;
-
-    const forceTimer = window.setTimeout(() => {
-      if (!cancelled) setShown(true);
-    }, forceShowAfterMs);
-
-    // IntersectionObserver が無い場合は即表示
     if (typeof IntersectionObserver === 'undefined') {
       setShown(true);
-      window.clearTimeout(forceTimer);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(forceTimer);
-      };
+      return;
     }
 
     const obs = new IntersectionObserver(
@@ -152,41 +147,14 @@ function RevealOnView({
         if (entry && entry.isIntersecting) {
           setShown(true);
           obs.disconnect();
-          window.clearTimeout(forceTimer);
         }
       },
       { threshold: 0.12, rootMargin }
     );
 
     obs.observe(el);
-
-    // ✅ iOS/LINE内ブラウザ：初回だけ発火しないことがあるので再判定を入れる
-    const rafId = window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        if (cancelled) return;
-        // すでに表示済みなら何もしない
-        if (shown) return;
-
-        const rect = el.getBoundingClientRect();
-        const vh = window.innerHeight || document.documentElement.clientHeight;
-        const inView = rect.top < vh * 0.92 && rect.bottom > vh * 0.08;
-
-        if (inView) {
-          setShown(true);
-          obs.disconnect();
-          window.clearTimeout(forceTimer);
-        }
-      }, 80);
-    });
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(forceTimer);
-      window.cancelAnimationFrame(rafId);
-      obs.disconnect();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, rootMargin, forceShowAfterMs]);
+    return () => obs.disconnect();
+  }, [enabled, rootMargin]);
 
   return (
     <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
@@ -360,17 +328,26 @@ function CountdownHeader() {
 }
 
 export default function LandingPage() {
-  const LINK = 'https://anyaku.co.jp/';
+  const PURCHASE_LINK = 'https://anyaku.co.jp/';
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
-    '1.webp': [{ left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: LINK, ariaLabel: 'テンプレ集を購入する（画像1）' }],
-    '2.webp': [{ left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: LINK, ariaLabel: 'テンプレ集を購入する（画像2）' }],
-    '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: LINK, ariaLabel: 'こちらから（画像9）' }],
-    '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
+    '1.webp': [
+      { left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
+    ],
+    '2.webp': [
+      { left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
+    ],
+    '9.webp': [
+      { left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' },
+    ],
+    '11.webp': [
+      { left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
+    ],
     '12.webp': [
-      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: LINK, ariaLabel: '利用規約（フッター）' },
-      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: LINK, ariaLabel: 'プライバシーポリシー（フッター）' },
-      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: LINK, ariaLabel: '運営会社（フッター）' },
+      // ✅ それぞれ別ページへ
+      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（フッター）' },
+      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（フッター）' },
+      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（フッター）' },
     ],
   };
 
@@ -403,17 +380,7 @@ export default function LandingPage() {
               </div>
             );
 
-            return (
-              <React.Fragment key={imgName}>
-                {shouldReveal ? (
-                  <RevealOnView enabled forceShowAfterMs={1800}>
-                    {content}
-                  </RevealOnView>
-                ) : (
-                  content
-                )}
-              </React.Fragment>
-            );
+            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
           })}
         </div>
       </div>
