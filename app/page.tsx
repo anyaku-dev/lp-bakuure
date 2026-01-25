@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
 
-// Figma指定フォント（数字=Jost 500 / 日本語=Zen Kaku Gothic New 700）
 const jost = Jost({
   subsets: ['latin'],
   weight: ['500'],
@@ -17,10 +16,10 @@ const zenKaku = Zen_Kaku_Gothic_New({
 });
 
 type Hotspot = {
-  left: number; // %
-  top: number; // %
-  width: number; // %
-  height: number; // %
+  left: number;
+  top: number;
+  width: number;
+  height: number;
   href: string;
   ariaLabel: string;
 };
@@ -30,18 +29,16 @@ function HotspotImage({
   alt,
   hotspots = [],
   loading = 'lazy',
+  fetchPriority,
 }: {
   src: string;
   alt: string;
   hotspots?: Hotspot[];
   loading?: 'eager' | 'lazy';
+  fetchPriority?: 'high' | 'low' | 'auto';
 }) {
   return (
-    <div
-      className="hsWrap"
-      onContextMenu={(e) => e.preventDefault()}
-      onDragStart={(e) => e.preventDefault()}
-    >
+    <div className="hsWrap">
       <img
         src={src}
         alt={alt}
@@ -49,12 +46,12 @@ function HotspotImage({
         loading={loading}
         draggable={false}
         onContextMenu={(e) => e.preventDefault()}
+        onDragStart={(e) => e.preventDefault()}
+        // @ts-expect-error
+        fetchPriority={fetchPriority}
+        decoding="async"
       />
 
-      {/* 画像保護用：ホットスポット以外の操作を吸う */}
-      <div className="imgGuard" aria-hidden />
-
-      {/* ホットスポットレイヤー */}
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => (
           <a
@@ -70,8 +67,6 @@ function HotspotImage({
               width: `${h.width}%`,
               height: `${h.height}%`,
             }}
-            onContextMenu={(e) => e.preventDefault()}
-            draggable={false}
           />
         ))}
       </div>
@@ -80,55 +75,23 @@ function HotspotImage({
         .hsWrap {
           position: relative;
           width: 100%;
-          -webkit-user-select: none;
-          user-select: none;
-          -webkit-touch-callout: none;
         }
-        .hsWrap * {
-          -webkit-user-select: none;
-          user-select: none;
-          -webkit-touch-callout: none;
-        }
-
         .hsImg {
           width: 100%;
           height: auto;
           display: block;
-          align-top: top;
-          -webkit-user-drag: none;
-          user-drag: none;
-          pointer-events: none; /* 画像自体は触れない */
         }
-
-        .imgGuard {
-          position: absolute;
-          inset: 0;
-          z-index: 1;
-          pointer-events: auto;
-          background: transparent;
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          user-select: none;
-        }
-
         .hsLayer {
           position: absolute;
           inset: 0;
-          z-index: 2;
           pointer-events: none;
         }
-
         .hsLink {
           position: absolute;
           display: block;
           pointer-events: auto;
           cursor: pointer;
           border-radius: 10px;
-
-          /* デバッグ時のみ
-          outline: 2px solid rgba(0, 255, 0, 0.35);
-          background: rgba(0, 255, 0, 0.08);
-          */
         }
       `}</style>
     </div>
@@ -183,26 +146,20 @@ function RevealOnView({
           display: block;
           opacity: 0;
           transform: translate3d(0, 28px, 0) scale(0.985);
-          filter: blur(3px);
           transition:
-            opacity 980ms cubic-bezier(0.2, 0.9, 0.2, 1),
-            transform 980ms cubic-bezier(0.2, 0.9, 0.2, 1),
-            filter 980ms cubic-bezier(0.2, 0.9, 0.2, 1);
-          will-change: opacity, transform, filter;
+            opacity 920ms cubic-bezier(0.2, 0.9, 0.2, 1),
+            transform 920ms cubic-bezier(0.2, 0.9, 0.2, 1);
+          will-change: opacity, transform;
         }
-
         .reveal.isShown {
           opacity: 1;
           transform: translate3d(0, 0, 0) scale(1);
-          filter: blur(0);
         }
-
         @media (prefers-reduced-motion: reduce) {
           .reveal {
             transition: none;
             opacity: 1;
             transform: none;
-            filter: none;
           }
         }
       `}</style>
@@ -210,9 +167,6 @@ function RevealOnView({
   );
 }
 
-// =====================================================
-// CountdownHeader（左：SVG完全置換 / 右：完全レスポンシブ）
-// =====================================================
 function CountdownHeader() {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [mounted, setMounted] = useState(false);
@@ -281,9 +235,9 @@ function CountdownHeader() {
           overflow: hidden;
         }
 
+        /* ✅ max-width固定をやめて、親（fixedHeader）の幅に100%で追従 */
         .countdownInner {
           width: 100%;
-          max-width: 425px;
           height: 53px;
           display: flex;
           align-items: stretch;
@@ -362,16 +316,13 @@ function CountdownHeader() {
   );
 }
 
-// =====================================================
-// メインページ
-// =====================================================
 export default function LandingPage() {
   const LINK = 'https://anyaku.co.jp/';
-  const HEADER_H = 53;
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
     '1.webp': [{ left: 11.81, top: 83.65, width: 79.23, height: 9.61, href: LINK, ariaLabel: 'テンプレ集を購入する（画像1）' }],
     '2.webp': [{ left: 12.08, top: 77.83, width: 79.0, height: 11.43, href: LINK, ariaLabel: 'テンプレ集を購入する（画像2）' }],
+    '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: LINK, ariaLabel: 'こちらから（画像9）' }],
     '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
     '12.webp': [
       { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: LINK, ariaLabel: '利用規約（フッター）' },
@@ -385,22 +336,28 @@ export default function LandingPage() {
   return (
     <main className="pageRoot">
       <div className="lpContainer">
-        {/* ✅ 画面上部に固定（ただし幅は中央のlpContainer幅に合わせる） */}
+        {/* ✅ 上部固定（lpContainer と同じ幅で中央に固定） */}
         <div className="fixedHeader">
           <CountdownHeader />
         </div>
 
-        {/* ✅ 固定ヘッダーぶんの押し下げ（被り防止） */}
         <div className="headerSpacer" aria-hidden />
 
         <div className="lpBody">
           {images.map((imgName, index) => {
             const hs = hotspotsByFile[imgName] ?? [];
             const shouldReveal = index >= 1;
+            const isSecond = index === 1;
 
             const content = (
               <div className="lpSection">
-                <HotspotImage src={`/${imgName}`} alt={`Slide ${index + 1}`} hotspots={hs} loading={index === 0 ? 'eager' : 'lazy'} />
+                <HotspotImage
+                  src={`/${imgName}`}
+                  alt={`Slide ${index + 1}`}
+                  hotspots={hs}
+                  loading={index === 0 || isSecond ? 'eager' : 'lazy'}
+                  fetchPriority={index === 0 || isSecond ? 'high' : 'auto'}
+                />
               </div>
             );
 
@@ -427,34 +384,36 @@ export default function LandingPage() {
           overflow: hidden;
         }
 
-        /* PC表示：最大幅 = max(425px, 40vw) かつ 40vwを超えない */
         @media (min-width: 768px) {
           .lpContainer {
             width: clamp(425px, 40vw, 40vw);
           }
         }
 
-        /* ✅ 固定ヘッダー：常に画面上部に固定、かつ中央の幅に収める */
+        /* ✅ ここが本命：fixed でも「コンテナ幅」で固定する */
         .fixedHeader {
           position: fixed;
           top: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 9999;
-
-          width: 100%;
+          z-index: 999;
           background: #1b2024;
           box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+
+          /* モバイル: そのまま画面幅 */
+          left: 0;
+          width: 100%;
         }
 
+        /* PC時: lpContainer と同じ幅で中央寄せ */
         @media (min-width: 768px) {
           .fixedHeader {
+            left: 50%;
+            transform: translateX(-50%);
             width: clamp(425px, 40vw, 40vw);
           }
         }
 
         .headerSpacer {
-          height: ${HEADER_H}px;
+          height: 53px;
           width: 100%;
         }
 
