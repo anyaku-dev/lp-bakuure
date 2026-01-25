@@ -56,12 +56,11 @@ function HotspotImage({
     <div className="hsWrap">
       <img {...imgProps} />
 
-      {/* ホットスポットレイヤー（画像の上に重ねる） */}
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => {
           const isInternal = h.href.startsWith('/');
 
-          const style: React.CSSProperties = {
+          const commonStyle: React.CSSProperties = {
             left: `${h.left}%`,
             top: `${h.top}%`,
             width: `${h.width}%`,
@@ -69,7 +68,13 @@ function HotspotImage({
           };
 
           return isInternal ? (
-            <Link key={idx} href={h.href} aria-label={h.ariaLabel} className="hsLink" style={style} />
+            <Link
+              key={idx}
+              href={h.href}
+              aria-label={h.ariaLabel}
+              className="hsLink"
+              style={commonStyle}
+            />
           ) : (
             <a
               key={idx}
@@ -78,7 +83,7 @@ function HotspotImage({
               rel="noopener noreferrer"
               aria-label={h.ariaLabel}
               className="hsLink"
-              style={style}
+              style={commonStyle}
             />
           );
         })}
@@ -97,15 +102,13 @@ function HotspotImage({
           -webkit-user-drag: none;
         }
 
-        /* ✅ 画像より上に必ず出す */
+        /* ✅ iOS/アプリ内ブラウザ対策：必ず画像より上に */
         .hsLayer {
           position: absolute;
           inset: 0;
           pointer-events: none;
           z-index: 10;
         }
-
-        /* ✅ リンクはタップ強め（iOS/アプリ内ブラウザ対策） */
         .hsLink {
           position: absolute;
           display: block;
@@ -114,6 +117,7 @@ function HotspotImage({
           border-radius: 10px;
           z-index: 11;
 
+          /* ✅ iOSのタップ判定を強める */
           -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
           touch-action: manipulation;
         }
@@ -123,7 +127,9 @@ function HotspotImage({
 }
 
 /**
- * ✅ 強力版 Reveal（壊れても必ず表示）
+ * ✅ 強力版 Reveal
+ * - IntersectionObserverが壊れても 1.2秒で強制表示
+ * - アプリ内ブラウザの“スクロール検知死”を根絶
  */
 function RevealOnView({
   children,
@@ -148,7 +154,7 @@ function RevealOnView({
 
     let timeoutId: number | null = null;
 
-    // ✅ 1.2秒で強制表示（LINE等のIO不安定対策）
+    // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
     timeoutId = window.setTimeout(() => {
       setShown(true);
     }, 1200);
@@ -187,6 +193,8 @@ function RevealOnView({
         .reveal {
           width: 100%;
           display: block;
+
+          /* ✅ “見えないまま”を作らないため、最悪でも後で必ず isShown になる */
           opacity: 0;
           transform: translate3d(0, 14px, 0);
           transition:
@@ -359,11 +367,11 @@ export default function LandingPage() {
     '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' }],
     '11.webp': [{ left: 12.08, top: 80.54, width: 79.0, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
 
-    // ✅ 画像内フッター文字にリンクが効く（=画像の上に重ねる）
+    // ✅ 画像フッターの文字上にリンクを乗せる（ここだけで完結）
     '12.webp': [
-      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（フッター）' },
-      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（フッター）' },
-      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（フッター）' },
+      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
+      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
     ],
   };
 
@@ -381,6 +389,8 @@ export default function LandingPage() {
         <div className="lpBody">
           {images.map((imgName, index) => {
             const hs = hotspotsByFile[imgName] ?? [];
+
+            // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
             const shouldReveal = index >= 1;
             const isSecond = index === 1;
 
