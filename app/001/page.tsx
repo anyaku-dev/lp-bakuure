@@ -5,81 +5,81 @@ import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
 import Script from 'next/script';
 
 const jost = Jost({
-  subsets: ['latin'],
-  weight: ['500'],
-  display: 'swap',
+    subsets: ['latin'],
+    weight: ['500'],
+    display: 'swap',
 });
 
 const zenKaku = Zen_Kaku_Gothic_New({
-  subsets: ['latin'],
-  weight: ['700'],
-  display: 'swap',
+    subsets: ['latin'],
+    weight: ['700'],
+    display: 'swap',
 });
 
 type Hotspot = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  href: string;
-  ariaLabel: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    href: string;
+    ariaLabel: string;
 };
 
 function HotspotImage({
-  src,
-  alt,
-  hotspots = [],
-  loading = 'lazy',
-  fetchPriority,
-}: {
-  src: string;
-  alt: string;
-  hotspots?: Hotspot[];
-  loading?: 'eager' | 'lazy';
-  fetchPriority?: 'high' | 'low' | 'auto';
-}) {
-  const imgProps: React.ImgHTMLAttributes<HTMLImageElement> & {
-    fetchPriority?: 'high' | 'low' | 'auto';
-  } = {
     src,
     alt,
-    className: 'hsImg',
-    loading,
-    draggable: false,
-    decoding: 'async',
-    onContextMenu: (e) => e.preventDefault(),
-    onDragStart: (e) => e.preventDefault(),
-    ...(fetchPriority ? { fetchPriority } : {}),
-  };
+    hotspots = [],
+    loading = 'lazy',
+    fetchPriority,
+}: {
+    src: string;
+    alt: string;
+    hotspots?: Hotspot[];
+    loading?: 'eager' | 'lazy';
+    fetchPriority?: 'high' | 'low' | 'auto';
+}) {
+    const imgProps: React.ImgHTMLAttributes<HTMLImageElement> & {
+        fetchPriority?: 'high' | 'low' | 'auto';
+    } = {
+        src,
+        alt,
+        className: 'hsImg',
+        loading,
+        draggable: false,
+        decoding: 'async',
+        onContextMenu: (e) => e.preventDefault(),
+        onDragStart: (e) => e.preventDefault(),
+        ...(fetchPriority ? { fetchPriority } : {}),
+    };
 
-  return (
-    <div className="hsWrap">
-      <img {...imgProps} />
+    return (
+        <div className="hsWrap">
+            <img {...imgProps} />
 
-      <div className="hsLayer" aria-hidden={hotspots.length === 0}>
-        {hotspots.map((h, idx) => {
-          const isExternal = /^https?:\/\//.test(h.href);
+            <div className="hsLayer" aria-hidden={hotspots.length === 0}>
+                {hotspots.map((h, idx) => {
+                    const isExternal = /^https?:\/\//.test(h.href);
 
-          return (
-            <a
-              key={idx}
-              href={h.href}
-              target={isExternal ? '_blank' : undefined}
-              rel={isExternal ? 'noopener noreferrer' : undefined}
-              aria-label={h.ariaLabel}
-              className="hsLink"
-              style={{
-                left: `${h.left}%`,
-                top: `${h.top}%`,
-                width: `${h.width}%`,
-                height: `${h.height}%`,
-              }}
-            />
-          );
-        })}
-      </div>
+                    return (
+                        <a
+                            key={idx}
+                            href={h.href}
+                            target={isExternal ? '_blank' : undefined}
+                            rel={isExternal ? 'noopener noreferrer' : undefined}
+                            aria-label={h.ariaLabel}
+                            className="hsLink"
+                            style={{
+                                left: `${h.left}%`,
+                                top: `${h.top}%`,
+                                width: `${h.width}%`,
+                                height: `${h.height}%`,
+                            }}
+                        />
+                    );
+                })}
+            </div>
 
-      <style jsx>{`
+            <style jsx>{`
         .hsWrap {
           position: relative;
           width: 100%;
@@ -112,8 +112,8 @@ function HotspotImage({
           touch-action: manipulation;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 /**
@@ -122,154 +122,166 @@ function HotspotImage({
  * - アプリ内ブラウザの“スクロール検知死”を根絶
  */
 function RevealOnView({
-  children,
-  enabled = true,
-  rootMargin = '200px 0px 200px 0px',
+    children,
+    enabled = true,
+    rootMargin = '200px 0px 200px 0px',
 }: {
-  children: React.ReactNode;
-  enabled?: boolean;
-  rootMargin?: string;
+    children: React.ReactNode;
+    enabled?: boolean;
+    rootMargin?: string;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [shown, setShown] = useState(!enabled);
+    const ref = useRef<HTMLDivElement | null>(null);
+    const [shown, setShown] = useState(!enabled);
 
-  useEffect(() => {
-    if (!enabled) return;
+    useEffect(() => {
+        if (!enabled) return;
 
-    const el = ref.current;
-    if (!el) {
-      setShown(true);
-      return;
-    }
-
-    let timeoutId: number | null = null;
-
-    // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
-    timeoutId = window.setTimeout(() => {
-      setShown(true);
-    }, 1200);
-
-    if (typeof IntersectionObserver === 'undefined') {
-      setShown(true);
-      if (timeoutId) window.clearTimeout(timeoutId);
-      return;
-    }
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry && entry.isIntersecting) {
-          setShown(true);
-          obs.disconnect();
-          if (timeoutId) window.clearTimeout(timeoutId);
+        const el = ref.current;
+        if (!el) {
+            setShown(true);
+            return;
         }
-      },
-      { threshold: 0.01, rootMargin }
+
+        let timeoutId: number | null = null;
+
+        // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
+// ただし「画面の近くにいる時だけ」強制表示する（遠いセクションはアニメーションのため未表示維持）
+timeoutId = window.setTimeout(() => {
+  const rect = el.getBoundingClientRect();
+  const near =
+    rect.top < window.innerHeight + 300 && rect.bottom > -300; // rootMargin相当の“近さ”
+  if (near) setShown(true);
+}, 1200);
+
+        if (typeof IntersectionObserver === 'undefined') {
+            setShown(true);
+            if (timeoutId) window.clearTimeout(timeoutId);
+            return;
+        }
+
+        const obs = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (entry && entry.isIntersecting) {
+                    setShown(true);
+                    obs.disconnect();
+                    if (timeoutId) window.clearTimeout(timeoutId);
+                }
+            },
+            { threshold: 0.01, rootMargin }
+        );
+
+        obs.observe(el);
+
+        return () => {
+            obs.disconnect();
+            if (timeoutId) window.clearTimeout(timeoutId);
+        };
+    }, [enabled, rootMargin]);
+
+    return (
+        <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
+            {children}
+
+                  <style jsx>{`
+  .reveal {
+    width: 100%;
+    display: block;
+
+    /* 出現前：完全に透明＋下から */
+    opacity: 0;
+    transform: translate3d(0, 36px, 0);
+
+    /* ゆっくり＋少し遅れて出る */
+    transition:
+      opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
+      transform 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms;
+
+    will-change: opacity, transform;
+  }
+
+  .reveal.isShown {
+    /* 出現後 */
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      transition: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+`}</style>
+
+
+        </div>
     );
-
-    obs.observe(el);
-
-    return () => {
-      obs.disconnect();
-      if (timeoutId) window.clearTimeout(timeoutId);
-    };
-  }, [enabled, rootMargin]);
-
-  return (
-    <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
-      {children}
-
-      <style jsx>{`
-        .reveal {
-          width: 100%;
-          display: block;
-
-          /* ✅ “見えないまま”を作らないため、最悪でも後で必ず isShown になる */
-          opacity: 0;
-          transform: translate3d(0, 14px, 0);
-          transition:
-            opacity 520ms cubic-bezier(0.2, 0.9, 0.2, 1),
-            transform 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
-          will-change: opacity, transform;
-        }
-        .reveal.isShown {
-          opacity: 1;
-          transform: translate3d(0, 0, 0);
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .reveal {
-            transition: none;
-            opacity: 1;
-            transform: none;
-          }
-        }
-      `}</style>
-    </div>
-  );
 }
 
 function CountdownHeader() {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [mounted, setMounted] = useState(false);
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+    const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
+    useEffect(() => {
+        setMounted(true);
 
-    const PERIOD_SEC = 3 * 24 * 60 * 60;
+        const PERIOD_SEC = 3 * 24 * 60 * 60;
 
-    const tick = () => {
-      const nowSec = Math.floor(Date.now() / 1000);
-      let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
-      if (remain === 0) remain = PERIOD_SEC;
+        const tick = () => {
+            const nowSec = Math.floor(Date.now() / 1000);
+            let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
+            if (remain === 0) remain = PERIOD_SEC;
 
-      const days = Math.floor(remain / (24 * 60 * 60));
-      const hours = Math.floor((remain % (24 * 60 * 60)) / (60 * 60));
-      const minutes = Math.floor((remain % (60 * 60)) / 60);
-      const seconds = remain % 60;
+            const days = Math.floor(remain / (24 * 60 * 60));
+            const hours = Math.floor((remain % (24 * 60 * 60)) / (60 * 60));
+            const minutes = Math.floor((remain % (60 * 60)) / 60);
+            const seconds = remain % 60;
 
-      setTimeLeft({ days, hours, minutes, seconds });
-    };
+            setTimeLeft({ days, hours, minutes, seconds });
+        };
 
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, []);
+        tick();
+        const id = window.setInterval(tick, 1000);
+        return () => window.clearInterval(id);
+    }, []);
 
-  if (!mounted) return <div style={{ height: 53, background: '#1B2024' }} />;
+    if (!mounted) return <div style={{ height: 53, background: '#1B2024' }} />;
 
-  const dd = String(timeLeft.days).padStart(2, '0');
-  const hh = String(timeLeft.hours).padStart(2, '0');
-  const mm = String(timeLeft.minutes).padStart(2, '0');
-  const ss = String(timeLeft.seconds).padStart(2, '0');
+    const dd = String(timeLeft.days).padStart(2, '0');
+    const hh = String(timeLeft.hours).padStart(2, '0');
+    const mm = String(timeLeft.minutes).padStart(2, '0');
+    const ss = String(timeLeft.seconds).padStart(2, '0');
 
-  return (
-    <div className={`countdownRoot ${zenKaku.className}`}>
-      <div className="countdownInner">
-        <div className="countdownBadge">
-          <img src="/timer-left.svg" alt="特別キャンペーン 終了まで残り" className="badgeSvg" draggable={false} />
-        </div>
+    return (
+        <div className={`countdownRoot ${zenKaku.className}`}>
+            <div className="countdownInner">
+                <div className="countdownBadge">
+                    <img src="/timer-left.svg" alt="特別キャンペーン 終了まで残り" className="badgeSvg" draggable={false} />
+                </div>
 
-        <div className="timer" aria-label="カウントダウン">
-          <div className="tItem">
-            <span className={`tNum ${jost.className}`}>{dd}</span>
-            <i className="tUnit">日</i>
-          </div>
-          <div className="tItem">
-            <span className={`tNum ${jost.className}`}>{hh}</span>
-            <i className="tUnit">時間</i>
-          </div>
-          <div className="tItem">
-            <span className={`tNum ${jost.className}`}>{mm}</span>
-            <i className="tUnit">分</i>
-          </div>
-          <div className="tItem">
-            <span className={`tNum ${jost.className}`}>{ss}</span>
-            <i className="tUnit">秒</i>
-          </div>
-        </div>
-      </div>
+                <div className="timer" aria-label="カウントダウン">
+                    <div className="tItem">
+                        <span className={`tNum ${jost.className}`}>{dd}</span>
+                        <i className="tUnit">日</i>
+                    </div>
+                    <div className="tItem">
+                        <span className={`tNum ${jost.className}`}>{hh}</span>
+                        <i className="tUnit">時間</i>
+                    </div>
+                    <div className="tItem">
+                        <span className={`tNum ${jost.className}`}>{mm}</span>
+                        <i className="tUnit">分</i>
+                    </div>
+                    <div className="tItem">
+                        <span className={`tNum ${jost.className}`}>{ss}</span>
+                        <i className="tUnit">秒</i>
+                    </div>
+                </div>
+            </div>
 
-      <style jsx>{`
+            <style jsx>{`
         .countdownRoot {
           width: 100%;
           background: #1b2024;
@@ -344,97 +356,97 @@ function CountdownHeader() {
           }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 export default function LandingPage() {
-  const PURCHASE_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
+    const PURCHASE_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
 
-  const hotspotsByFile: Record<string, Hotspot[]> = {
-    '1.webp': [
-      {
-        left: 9.5,
-        top: 83.65,
-        width: 81,
-        height: 11.55,
-        href: PURCHASE_LINK,
-        ariaLabel: 'テンプレ集を購入する（画像1）',
-      },
-    ],
-    '11.webp': [
-      {
-        left: 9.5,
-        top: 87,
-        width: 81,
-        height: 11.55,
-        href: PURCHASE_LINK,
-        ariaLabel: 'テンプレ集を購入する（画像11）',
-      },
-    ],
+    const hotspotsByFile: Record<string, Hotspot[]> = {
+        '1.webp': [
+            {
+                left: 9.5,
+                top: 83.65,
+                width: 81,
+                height: 11.55,
+                href: PURCHASE_LINK,
+                ariaLabel: 'テンプレ集を購入する（画像1）',
+            },
+        ],
+        '11.webp': [
+            {
+                left: 9.5,
+                top: 87,
+                width: 81,
+                height: 11.55,
+                href: PURCHASE_LINK,
+                ariaLabel: 'テンプレ集を購入する（画像11）',
+            },
+        ],
 
-    // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
-    '12.webp': [
-      { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
-      { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
-      { left: 75.28, top: 64.5, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
-    ],
-  };
+        // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
+        '12.webp': [
+            { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
+            { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+            { left: 75.28, top: 64.5, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
+        ],
+    };
 
-  const images = ['1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp', '7.webp', '8.webp', '9.webp', '10.webp', '11.webp', '12.webp'];
+    const images = ['1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp', '7.webp', '8.webp', '9.webp', '10.webp', '11.webp', '12.webp'];
 
-  return (
-    <main className="pageRoot">
-      {/* <!-- Google Tag Manager --> */}
-      <Script id="gtm-init" strategy="afterInteractive">
-        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-TN6P9QF8');`}
-      </Script>
-      {/* <!-- End Google Tag Manager --> */}
+    return (
+        <main className="pageRoot">
+            {/* <!-- Google Tag Manager --> */}
+            <Script id="gtm-init" strategy="afterInteractive">
+                {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-TN6P9QF8');`}
+            </Script>
+            {/* <!-- End Google Tag Manager --> */}
 
-      {/* <!-- Google Tag Manager (noscript) --> */}
-      <noscript>
-        <iframe
-          src="https://www.googletagmanager.com/ns.html?id=GTM-TN6P9QF8"
-          height="0"
-          width="0"
-          style={{ display: 'none', visibility: 'hidden' }}
-        />
-      </noscript>
-      {/* <!-- End Google Tag Manager (noscript) --> */}
-
-      <div className="lpContainer">
-        <div className="fixedHeader">
-          <CountdownHeader />
-        </div>
-
-        <div className="headerSpacer" aria-hidden />
-
-        <div className="lpBody">
-          {images.map((imgName, index) => {
-            const hs = hotspotsByFile[imgName] ?? [];
-
-            // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
-            const shouldReveal = index >= 1;
-            const isSecond = index === 1;
-
-            const content = (
-              <div className="lpSection">
-                <HotspotImage
-                  src={`/lp-001/${imgName}`}
-                  alt={`Slide ${index + 1}`}
-                  hotspots={hs}
-                  loading={index === 0 || isSecond ? 'eager' : 'lazy'}
-                  fetchPriority={index === 0 || isSecond ? 'high' : undefined}
+            {/* <!-- Google Tag Manager (noscript) --> */}
+            <noscript>
+                <iframe
+                    src="https://www.googletagmanager.com/ns.html?id=GTM-TN6P9QF8"
+                    height="0"
+                    width="0"
+                    style={{ display: 'none', visibility: 'hidden' }}
                 />
-              </div>
-            );
+            </noscript>
+            {/* <!-- End Google Tag Manager (noscript) --> */}
 
-            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
-          })}
-        </div>
-      </div>
+            <div className="lpContainer">
+                <div className="fixedHeader">
+                    <CountdownHeader />
+                </div>
 
-      <style jsx>{`
+                <div className="headerSpacer" aria-hidden />
+
+                <div className="lpBody">
+                    {images.map((imgName, index) => {
+                        const hs = hotspotsByFile[imgName] ?? [];
+
+                        // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
+                        const shouldReveal = index >= 1;
+                        const isSecond = index === 1;
+
+                        const content = (
+                            <div className="lpSection">
+                                <HotspotImage
+                                    src={`/lp-001/${imgName}`}
+                                    alt={`Slide ${index + 1}`}
+                                    hotspots={hs}
+                                    loading={index === 0 || isSecond ? 'eager' : 'lazy'}
+                                    fetchPriority={index === 0 || isSecond ? 'high' : undefined}
+                                />
+                            </div>
+                        );
+
+                        return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
+                    })}
+                </div>
+            </div>
+
+            <style jsx>{`
         .pageRoot {
           min-height: 100vh;
           background: #f3f4f6;
@@ -492,6 +504,6 @@ export default function LandingPage() {
           background: #fafafa;
         }
       `}</style>
-    </main>
-  );
+        </main>
+    );
 }
