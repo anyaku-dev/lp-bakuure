@@ -376,6 +376,66 @@ export default function LandingPage() {
 
   const images = ['1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp', '7.webp', '8.webp', '9.webp', '10.webp', '11.webp', '12.webp'];
 
+  // ===============================
+  // ① CTA用 state + ref + useEffect
+  // ===============================
+  const CTA_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
+
+  const footerSentinelRef = useRef<HTMLDivElement | null>(null);
+  const [showCta, setShowCta] = useState(false);
+
+  useEffect(() => {
+    // ✅ PCは出さない（スマホだけ）
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (!isMobile) return;
+
+    let cleanupFns: Array<() => void> = [];
+
+    // ✅ 少しスクロールしたら表示（例：120px）
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      if (y > 120) setShowCta(true);
+      else setShowCta(false);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    cleanupFns.push(() => window.removeEventListener('scroll', onScroll));
+
+    // ✅ フッター領域まで来たら非表示（IntersectionObserverで監視）
+    const sentinel = footerSentinelRef.current;
+    if (!sentinel) return () => cleanupFns.forEach((fn) => fn());
+
+    if (typeof IntersectionObserver === 'undefined') {
+      // フォールバック：IOがない環境ではスクロール判定のみ（最悪OK）
+      return () => cleanupFns.forEach((fn) => fn());
+    }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        // entry.isIntersecting === true → フッター付近に来た → CTAを消す
+        if (entry?.isIntersecting) {
+          setShowCta(false);
+        } else {
+          // フッターから離れていて、かつスクロールしているなら表示
+          const y = window.scrollY || document.documentElement.scrollTop || 0;
+          if (y > 120) setShowCta(true);
+        }
+      },
+      {
+        // ✅ 画面下部にフッターが"触れたら"消す
+        //   rootMargin の bottom を少しマイナスにすると、少し手前で消える
+        rootMargin: '0px 0px -10% 0px',
+        threshold: 0.01,
+      }
+    );
+
+    obs.observe(sentinel);
+    cleanupFns.push(() => obs.disconnect());
+
+    return () => cleanupFns.forEach((fn) => fn());
+  }, []);
+
   return (
     <main className="pageRoot">
       <div className="lpContainer">
@@ -407,7 +467,74 @@ export default function LandingPage() {
 
             return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
           })}
+
+          {/* ✅ フッター監視用の見えない目印（最下部） */}
+          <div ref={footerSentinelRef} aria-hidden style={{ height: 1 }} />
         </div>
+
+        {/* ✅ 固定CTA（スマホで少しスクロール後に表示 / フッターで消える） */}
+        <a
+          href={CTA_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`fixedCta ${showCta ? 'isShown' : ''}`}
+          aria-label="購入へ進む"
+        >
+          <img src="/lp-001/cta-hover_btn.webp" alt="購入する" draggable={false} />
+          <style jsx>{`
+            .fixedCta {
+              position: fixed;
+              left: 50%;
+              transform: translateX(-50%);
+              bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+              width: min(92vw, 420px);
+              z-index: 1000;
+
+              display: block;
+              line-height: 0;
+              border-radius: 14px;
+              overflow: hidden;
+              box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+
+              /* ✅ 初期は非表示 */
+              opacity: 0;
+              pointer-events: none;
+              transform: translateX(-50%) translate3d(0, 10px, 0);
+              transition:
+                opacity 220ms ease,
+                transform 220ms ease;
+              -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+              touch-action: manipulation;
+            }
+
+            .fixedCta.isShown {
+              opacity: 1;
+              pointer-events: auto;
+              transform: translateX(-50%) translate3d(0, 0, 0);
+            }
+
+            .fixedCta img {
+              width: 100%;
+              height: auto;
+              display: block;
+              user-select: none;
+              -webkit-user-drag: none;
+            }
+
+            /* ✅ スマホのみ表示 */
+            @media (min-width: 768px) {
+              .fixedCta {
+                display: none;
+              }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+              .fixedCta {
+                transition: none;
+              }
+            }
+          `}</style>
+        </a>
       </div>
 
       <style jsx>{`
