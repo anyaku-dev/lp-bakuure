@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
+import Script from 'next/script';
 
 const jost = Jost({
   subsets: ['latin'],
@@ -348,7 +349,7 @@ function CountdownHeader() {
 }
 
 export default function LandingPage() {
-  const PURCHASE_LINK = 'https://anyaku.co.jp/';
+  const PURCHASE_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
 
   const hotspotsByFile: Record<string, Hotspot[]> = {
     '1.webp': [
@@ -375,7 +376,14 @@ export default function LandingPage() {
     // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
     '12.webp': [
       { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
-      { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+      {
+        left: 35.21,
+        top: 64.5,
+        width: 30.69,
+        height: 7.19,
+        href: '/privacy',
+        ariaLabel: 'プライバシーポリシー（画像フッター）',
+      },
       { left: 75.28, top: 64.5, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
     ],
   };
@@ -388,7 +396,6 @@ export default function LandingPage() {
   const CTA_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
 
   const footerSentinelRef = useRef<HTMLDivElement | null>(null);
-  const footerInViewRef = useRef(false);
   const [showCta, setShowCta] = useState(false);
 
   useEffect(() => {
@@ -401,7 +408,7 @@ export default function LandingPage() {
     // ✅ 少しスクロールしたら表示（例：120px）
     const onScroll = () => {
       const y = window.scrollY || document.documentElement.scrollTop || 0;
-      if (y > 120 && !footerInViewRef.current) setShowCta(true);
+      if (y > 120) setShowCta(true);
       else setShowCta(false);
     };
     onScroll();
@@ -420,13 +427,11 @@ export default function LandingPage() {
     const obs = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-
+        // entry.isIntersecting === true → フッター付近に来た → CTAを消す
         if (entry?.isIntersecting) {
-          footerInViewRef.current = true;
           setShowCta(false);
         } else {
-          footerInViewRef.current = false;
-
+          // フッターから離れていて、かつスクロールしているなら表示
           const y = window.scrollY || document.documentElement.scrollTop || 0;
           if (y > 120) setShowCta(true);
         }
@@ -447,6 +452,27 @@ export default function LandingPage() {
 
   return (
     <main className="pageRoot">
+      {/* Google Tag Manager */}
+      <Script id="gtm" strategy="afterInteractive">
+        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-TN6P9QF8');`}
+      </Script>
+      {/* End Google Tag Manager */}
+
+      {/* Google Tag Manager (noscript) */}
+      <noscript>
+        <iframe
+          src="https://www.googletagmanager.com/ns.html?id=GTM-TN6P9QF8"
+          height="0"
+          width="0"
+          style={{ display: 'none', visibility: 'hidden' }}
+        />
+      </noscript>
+      {/* End Google Tag Manager (noscript) */}
+
       <div className="lpContainer">
         <div className="fixedHeader">
           <CountdownHeader />
@@ -528,13 +554,6 @@ export default function LandingPage() {
               display: block;
               user-select: none;
               -webkit-user-drag: none;
-            }
-
-            /* ✅ スマホのみ表示（PCは常に非表示） */
-            @media (min-width: 768px) {
-              .fixedCta {
-                display: none;
-              }
             }
 
             @media (prefers-reduced-motion: reduce) {
