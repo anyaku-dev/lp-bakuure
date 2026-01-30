@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -114,19 +113,17 @@ function HotspotImage({
 }
 
 /**
- * ✅ Reveal（改良版）
- * - スクロール/リサイズイベントを監視し、要素が表示領域に入ったかを判定
- * - rootMarginをピクセル指定にすることで、デバイス間の表示差異を吸収
- * - requestAnimationFrame を利用して、スクロールイベントの発火を最適化
+ * ✅ Reveal（最終修正版）
+ * - IntersectionObserver を使用し、モダンブラウザで最も信頼性の高い方法で実装
+ * - rootMargin をピクセル単位で指定し、画面サイズに依存しない安定した動作を確保
+ * - threshold を 0.1 に設定し、要素が10%表示された時点でアニメーションを開始
  */
 function RevealOnView({
     children,
     enabled = true,
-    rootMargin = '200px 0px 200px 0px',
 }: {
     children: React.ReactNode;
     enabled?: boolean;
-    rootMargin?: string;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
     const [shown, setShown] = useState(!enabled);
@@ -140,53 +137,25 @@ function RevealOnView({
             return;
         }
 
-        const parsePx = (v: string) => {
-            const n = parseFloat(v);
-            return Number.isFinite(n) ? n : 0;
-        };
-
-        const parts = rootMargin.split(' ').map(s => s.trim());
-        const topMargin = parsePx(parts[0] ?? '0px');
-        const bottomMargin = parsePx(parts[2] ?? parts[0] ?? '0px');
-
-        let rafId: number | null = null;
-
-        const isInView = () => {
-            const rect = el.getBoundingClientRect();
-            // 画像が未ロードで高さが0の場合でも、topが0より大きければ表示領域外とみなす
-            if (rect.height === 0 && rect.top > 0) return false;
-            return rect.top < window.innerHeight + bottomMargin && rect.bottom > -topMargin;
-        };
-
-        const check = () => {
-            rafId = null;
-            if (isInView()) {
-                setShown(true);
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setShown(true);
+                    observer.unobserve(el);
+                }
+            },
+            {
+                rootMargin: '0px 0px -100px 0px',
+                threshold: 0.1, // 要素が10%見えたらトリガー
             }
-        };
+        );
 
-        const onScroll = () => {
-            if (rafId != null) return;
-            rafId = window.requestAnimationFrame(check);
-        };
-
-        // イベントリスナーを登録
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', onScroll);
-        window.addEventListener('orientationchange', onScroll);
-
-        // 初回チェック
-        onScroll();
+        observer.observe(el);
 
         return () => {
-            window.removeEventListener('scroll', onScroll);
-            window.removeEventListener('resize', onScroll);
-            window.removeEventListener('orientationchange', onScroll);
-            if (rafId != null) {
-                window.cancelAnimationFrame(rafId);
-            }
+            observer.disconnect();
         };
-    }, [enabled, rootMargin, shown]);
+    }, [enabled, shown]);
 
     return (
         <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
