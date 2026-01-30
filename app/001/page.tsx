@@ -368,9 +368,9 @@ export default function LandingPage() {
 
     // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
     '12.webp': [
-      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
-      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
-      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
+      { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
+      { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+      { left: 75.28, top: 64.5, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
     ],
   };
 
