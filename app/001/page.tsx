@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -91,8 +92,6 @@ function HotspotImage({
           user-select: none;
           -webkit-user-drag: none;
         }
-
-        /* ✅ iOS/アプリ内ブラウザ対策：必ず画像より上に */
         .hsLayer {
           position: absolute;
           inset: 0;
@@ -106,8 +105,6 @@ function HotspotImage({
           cursor: pointer;
           border-radius: 10px;
           z-index: 6;
-
-          /* ✅ iOSのタップ判定を強める */
           -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
           touch-action: manipulation;
         }
@@ -117,9 +114,10 @@ function HotspotImage({
 }
 
 /**
- * ✅ 強力版 Reveal
- * - IntersectionObserverが壊れても 1.2秒で強制表示
- * - アプリ内ブラウザの“スクロール検知死”を根絶
+ * ✅ Reveal（改良版）
+ * - スクロール/リサイズイベントを監視し、要素が表示領域に入ったかを判定
+ * - rootMarginをピクセル指定にすることで、デバイス間の表示差異を吸収
+ * - requestAnimationFrame を利用して、スクロールイベントの発火を最適化
  */
 function RevealOnView({
     children,
@@ -134,7 +132,7 @@ function RevealOnView({
     const [shown, setShown] = useState(!enabled);
 
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled || shown) return;
 
         const el = ref.current;
         if (!el) {
@@ -142,80 +140,82 @@ function RevealOnView({
             return;
         }
 
-        let timeoutId: number | null = null;
+        const parsePx = (v: string) => {
+            const n = parseFloat(v);
+            return Number.isFinite(n) ? n : 0;
+        };
 
-        // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
-// ただし「画面の近くにいる時だけ」強制表示する（遠いセクションはアニメーションのため未表示維持）
-timeoutId = window.setTimeout(() => {
-  const rect = el.getBoundingClientRect();
-  const near =
-    rect.top < window.innerHeight + 300 && rect.bottom > -300; // rootMargin相当の“近さ”
-  if (near) setShown(true);
-}, 1200);
+        const parts = rootMargin.split(' ').map(s => s.trim());
+        const topMargin = parsePx(parts[0] ?? '0px');
+        const bottomMargin = parsePx(parts[2] ?? parts[0] ?? '0px');
 
-        if (typeof IntersectionObserver === 'undefined') {
-            setShown(true);
-            if (timeoutId) window.clearTimeout(timeoutId);
-            return;
-        }
+        let rafId: number | null = null;
 
-        const obs = new IntersectionObserver(
-            (entries) => {
-                const entry = entries[0];
-                if (entry && entry.isIntersecting) {
-                    setShown(true);
-                    obs.disconnect();
-                    if (timeoutId) window.clearTimeout(timeoutId);
-                }
-            },
-            { threshold: 0.01, rootMargin }
-        );
+        const isInView = () => {
+            const rect = el.getBoundingClientRect();
+            // 画像が未ロードで高さが0の場合でも、topが0より大きければ表示領域外とみなす
+            if (rect.height === 0 && rect.top > 0) return false;
+            return rect.top < window.innerHeight + bottomMargin && rect.bottom > -topMargin;
+        };
 
-        obs.observe(el);
+        const check = () => {
+            rafId = null;
+            if (isInView()) {
+                setShown(true);
+            }
+        };
+
+        const onScroll = () => {
+            if (rafId != null) return;
+            rafId = window.requestAnimationFrame(check);
+        };
+
+        // イベントリスナーを登録
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        window.addEventListener('orientationchange', onScroll);
+
+        // 初回チェック
+        onScroll();
 
         return () => {
-            obs.disconnect();
-            if (timeoutId) window.clearTimeout(timeoutId);
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onScroll);
+            window.removeEventListener('orientationchange', onScroll);
+            if (rafId != null) {
+                window.cancelAnimationFrame(rafId);
+            }
         };
-    }, [enabled, rootMargin]);
+    }, [enabled, rootMargin, shown]);
 
     return (
         <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
             {children}
+            <style jsx>{`
+      .reveal {
+        width: 100%;
+        display: block;
+        opacity: 0;
+        transform: translate3d(0, 36px, 0);
+        transition:
+          opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
+          transform 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms;
+        will-change: opacity, transform;
+      }
 
-                  <style jsx>{`
-  .reveal {
-    width: 100%;
-    display: block;
+      .reveal.isShown {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
 
-    /* 出現前：完全に透明＋下から */
-    opacity: 0;
-    transform: translate3d(0, 36px, 0);
-
-    /* ゆっくり＋少し遅れて出る */
-    transition:
-      opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
-      transform 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms;
-
-    will-change: opacity, transform;
-  }
-
-  .reveal.isShown {
-    /* 出現後 */
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .reveal {
-      transition: none;
-      opacity: 1;
-      transform: none;
-    }
-  }
-`}</style>
-
-
+      @media (prefers-reduced-motion: reduce) {
+        .reveal {
+          transition: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
+    `}</style>
         </div>
     );
 }
@@ -226,22 +226,17 @@ function CountdownHeader() {
 
     useEffect(() => {
         setMounted(true);
-
         const PERIOD_SEC = 3 * 24 * 60 * 60;
-
         const tick = () => {
             const nowSec = Math.floor(Date.now() / 1000);
             let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
             if (remain === 0) remain = PERIOD_SEC;
-
             const days = Math.floor(remain / (24 * 60 * 60));
             const hours = Math.floor((remain % (24 * 60 * 60)) / (60 * 60));
             const minutes = Math.floor((remain % (60 * 60)) / 60);
             const seconds = remain % 60;
-
             setTimeLeft({ days, hours, minutes, seconds });
         };
-
         tick();
         const id = window.setInterval(tick, 1000);
         return () => window.clearInterval(id);
@@ -260,7 +255,6 @@ function CountdownHeader() {
                 <div className="countdownBadge">
                     <img src="/timer-left.svg" alt="特別キャンペーン 終了まで残り" className="badgeSvg" draggable={false} />
                 </div>
-
                 <div className="timer" aria-label="カウントダウン">
                     <div className="tItem">
                         <span className={`tNum ${jost.className}`}>{dd}</span>
@@ -280,81 +274,16 @@ function CountdownHeader() {
                     </div>
                 </div>
             </div>
-
             <style jsx>{`
-        .countdownRoot {
-          width: 100%;
-          background: #1b2024;
-          overflow: hidden;
-        }
-        .countdownInner {
-          width: 100%;
-          height: 53px;
-          display: flex;
-          align-items: stretch;
-          background: #1b2024;
-          overflow: hidden;
-        }
-        .countdownBadge {
-          flex: 0 0 auto;
-          height: 53px;
-          width: clamp(140px, 36vw, 150px);
-          overflow: hidden;
-          line-height: 0;
-        }
-        .badgeSvg {
-          width: 100%;
-          height: 100%;
-          display: block;
-          object-fit: cover;
-          object-position: center;
-        }
-        .timer {
-          flex: 1 1 auto;
-          min-width: 0;
-          height: 53px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: clamp(10px, 3vw, 18px);
-          padding-left: clamp(10px, 3vw, 16px);
-          padding-right: clamp(10px, 3vw, 16px);
-          overflow: hidden;
-        }
-        .tItem {
-          display: inline-flex;
-          align-items: baseline;
-          gap: clamp(4px, 1.2vw, 8px);
-          white-space: nowrap;
-          min-width: 0;
-        }
-        .tNum {
-          color: #fff12f;
-          font-weight: 500;
-          font-variant-numeric: tabular-nums;
-          line-height: 1;
-          letter-spacing: 0.8px;
-          font-size: clamp(24px, 8vw, 34.2px);
-        }
-        .tUnit {
-          color: #fff12f;
-          font-style: normal;
-          font-weight: 700;
-          line-height: 1;
-          white-space: nowrap;
-          font-size: clamp(9px, 2.7vw, 11px);
-        }
-        @media (max-width: 380px) {
-          .timer {
-            gap: 10px;
-            padding-left: 10px;
-            padding-right: 12px;
-          }
-          .tNum {
-            font-size: 23px;
-            letter-spacing: 0.6px;
-          }
-        }
+        .countdownRoot { width: 100%; background: #1b2024; overflow: hidden; }
+        .countdownInner { width: 100%; height: 53px; display: flex; align-items: stretch; background: #1b2024; overflow: hidden; }
+        .countdownBadge { flex: 0 0 auto; height: 53px; width: clamp(140px, 36vw, 150px); overflow: hidden; line-height: 0; }
+        .badgeSvg { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; }
+        .timer { flex: 1 1 auto; min-width: 0; height: 53px; display: flex; align-items: center; justify-content: flex-start; gap: clamp(10px, 3vw, 18px); padding-left: clamp(10px, 3vw, 16px); padding-right: clamp(10px, 3vw, 16px); overflow: hidden; }
+        .tItem { display: inline-flex; align-items: baseline; gap: clamp(4px, 1.2vw, 8px); white-space: nowrap; min-width: 0; }
+        .tNum { color: #fff12f; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: 0.8px; font-size: clamp(23px, 6.5vw, 28px); }
+        .tUnit { color: #fff12f; font-style: normal; font-weight: 700; line-height: 1; white-space: nowrap; font-size: clamp(9px, 2.7vw, 11px); }
+        @media (max-width: 380px) { .timer { gap: 10px; padding-left: 10px; padding-right: 12px; } .tNum { font-size: 23px; letter-spacing: 0.6px; } }
       `}</style>
         </div>
     );
@@ -364,28 +293,8 @@ export default function LandingPage() {
     const PURCHASE_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
 
     const hotspotsByFile: Record<string, Hotspot[]> = {
-        '1.webp': [
-            {
-                left: 9.5,
-                top: 83.65,
-                width: 81,
-                height: 11.55,
-                href: PURCHASE_LINK,
-                ariaLabel: 'テンプレ集を購入する（画像1）',
-            },
-        ],
-        '11.webp': [
-            {
-                left: 9.5,
-                top: 87,
-                width: 81,
-                height: 11.55,
-                href: PURCHASE_LINK,
-                ariaLabel: 'テンプレ集を購入する（画像11）',
-            },
-        ],
-
-        // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
+        '1.webp': [{ left: 9.5, top: 83.65, width: 81, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' }],
+        '11.webp': [{ left: 9.5, top: 87, width: 81, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' }],
         '12.webp': [
             { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
             { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
@@ -397,35 +306,21 @@ export default function LandingPage() {
 
     return (
         <main className="pageRoot">
-            {/* <!-- Google Tag Manager --> */}
             <Script id="gtm-init" strategy="afterInteractive">
                 {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-TN6P9QF8');`}
             </Script>
-            {/* <!-- End Google Tag Manager --> */}
-
-            {/* <!-- Google Tag Manager (noscript) --> */}
             <noscript>
-                <iframe
-                    src="https://www.googletagmanager.com/ns.html?id=GTM-TN6P9QF8"
-                    height="0"
-                    width="0"
-                    style={{ display: 'none', visibility: 'hidden' }}
-                />
+                <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TN6P9QF8" height="0" width="0" style={{ display: 'none', visibility: 'hidden' }} />
             </noscript>
-            {/* <!-- End Google Tag Manager (noscript) --> */}
 
             <div className="lpContainer">
                 <div className="fixedHeader">
                     <CountdownHeader />
                 </div>
-
                 <div className="headerSpacer" aria-hidden />
-
                 <div className="lpBody">
                     {images.map((imgName, index) => {
                         const hs = hotspotsByFile[imgName] ?? [];
-
-                        // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
                         const shouldReveal = index >= 1;
                         const isSecond = index === 1;
 
@@ -441,68 +336,20 @@ export default function LandingPage() {
                             </div>
                         );
 
-                        return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
+                        return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView>{content}</RevealOnView> : content}</React.Fragment>;
                     })}
                 </div>
             </div>
 
             <style jsx>{`
-        .pageRoot {
-          min-height: 100vh;
-          background: #f3f4f6;
-          display: flex;
-          justify-content: center;
-          overflow-x: hidden;
-        }
-
-        .lpContainer {
-          width: 100%;
-          background: #ffffff;
-          position: relative;
-          min-height: 100vh;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
-          overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-          .lpContainer {
-            width: clamp(425px, 40vw, 40vw);
-          }
-        }
-
-        .fixedHeader {
-          position: fixed;
-          top: 0;
-          z-index: 999;
-          background: #1b2024;
-          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
-          left: 0;
-          width: 100%;
-        }
-
-        @media (min-width: 768px) {
-          .fixedHeader {
-            left: 50%;
-            transform: translateX(-50%);
-            width: clamp(425px, 40vw, 40vw);
-          }
-        }
-
-        .headerSpacer {
-          height: 53px;
-          width: 100%;
-        }
-
-        .lpBody {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-        }
-
-        .lpSection {
-          width: 100%;
-          background: #fafafa;
-        }
+        .pageRoot { min-height: 100vh; background: #f3f4f6; display: flex; justify-content: center; overflow-x: hidden; }
+        .lpContainer { width: 100%; background: #ffffff; position: relative; min-height: 100vh; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18); overflow: hidden; }
+        @media (min-width: 768px) { .lpContainer { width: clamp(425px, 40vw, 40vw); } }
+        .fixedHeader { position: fixed; top: 0; z-index: 999; background: #1b2024; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25); left: 0; width: 100%; }
+        @media (min-width: 768px) { .fixedHeader { left: 50%; transform: translateX(-50%); width: clamp(425px, 40vw, 40vw); } }
+        .headerSpacer { height: 53px; width: 100%; }
+        .lpBody { display: flex; flex-direction: column; width: 100%; }
+        .lpSection { width: 100%; background: #fafafa; }
       `}</style>
         </main>
     );
