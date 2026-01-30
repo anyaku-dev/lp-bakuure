@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -112,12 +113,6 @@ function HotspotImage({
     );
 }
 
-/**
- * ✅ Reveal（最終修正版）
- * - IntersectionObserver を使用し、モダンブラウザで最も信頼性の高い方法で実装
- * - rootMargin をピクセル単位で指定し、画面サイズに依存しない安定した動作を確保
- * - threshold を 0.1 に設定し、要素が10%表示された時点でアニメーションを開始
- */
 function RevealOnView({
     children,
     enabled = true,
@@ -146,7 +141,7 @@ function RevealOnView({
             },
             {
                 rootMargin: '0px 0px -100px 0px',
-                threshold: 0.1, // 要素が10%見えたらトリガー
+                threshold: 0.01, // わずかでも表示されたらトリガー
             }
         );
 
@@ -164,23 +159,33 @@ function RevealOnView({
       .reveal {
         width: 100%;
         display: block;
+        /* 修正：opacity: 0 と visibility: hidden を併用 */
         opacity: 0;
-        transform: translate3d(0, 36px, 0);
+        visibility: hidden;
+        transform: translate3d(0, 20px, 0);
         transition:
-          opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
-          transform 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms;
-        will-change: opacity, transform;
+          opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms,
+          transform 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms,
+          visibility 0s 0s; /* isShownになったら即座にvisibleに */
+        will-change: opacity, transform, visibility;
       }
 
       .reveal.isShown {
         opacity: 1;
+        /* 修正：visibility を visible に */
+        visibility: visible;
         transform: translate3d(0, 0, 0);
+        transition:
+          opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms,
+          transform 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms,
+          visibility 0s 0s;
       }
 
       @media (prefers-reduced-motion: reduce) {
         .reveal {
           transition: none;
           opacity: 1;
+          visibility: visible;
           transform: none;
         }
       }
