@@ -1,14 +1,25 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import CountdownHeader from '@/components/CountdownHeader';
+import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
+
+const jost = Jost({
+  subsets: ['latin'],
+  weight: ['500'],
+  display: 'swap',
+});
+
+const zenKaku = Zen_Kaku_Gothic_New({
+  subsets: ['latin'],
+  weight: ['700'],
+  display: 'swap',
+});
 
 type Hotspot = {
-  left: number; // %
-  top: number; // %
-  width: number; // %
-  height: number; // %
+  left: number;
+  top: number;
+  width: number;
+  height: number;
   href: string;
   ariaLabel: string;
 };
@@ -46,27 +57,22 @@ function HotspotImage({
 
       <div className="hsLayer" aria-hidden={hotspots.length === 0}>
         {hotspots.map((h, idx) => {
-          const isInternal = h.href.startsWith('/');
+          const isExternal = /^https?:\/\//.test(h.href);
 
-          const commonStyle: React.CSSProperties = {
-            left: `${h.left}%`,
-            top: `${h.top}%`,
-            width: `${h.width}%`,
-            height: `${h.height}%`,
-          };
-
-          // 内部リンクは next/link、外部リンクは a
-          return isInternal ? (
-            <Link key={idx} href={h.href} aria-label={h.ariaLabel} className="hsLink" style={commonStyle} />
-          ) : (
+          return (
             <a
               key={idx}
               href={h.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={isExternal ? '_blank' : undefined}
+              rel={isExternal ? 'noopener noreferrer' : undefined}
               aria-label={h.ariaLabel}
               className="hsLink"
-              style={commonStyle}
+              style={{
+                left: `${h.left}%`,
+                top: `${h.top}%`,
+                width: `${h.width}%`,
+                height: `${h.height}%`,
+              }}
             />
           );
         })}
@@ -85,7 +91,7 @@ function HotspotImage({
           -webkit-user-drag: none;
         }
 
-        /* iOS/LINE等でリンクが効かない問題を潰すため、必ず画像より上 */
+        /* ✅ iOS/アプリ内ブラウザ対策：必ず画像より上に */
         .hsLayer {
           position: absolute;
           inset: 0;
@@ -100,6 +106,7 @@ function HotspotImage({
           border-radius: 10px;
           z-index: 6;
 
+          /* ✅ iOSのタップ判定を強める */
           -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
           touch-action: manipulation;
         }
@@ -109,9 +116,9 @@ function HotspotImage({
 }
 
 /**
- * “確実に表示される” Reveal
- * - IntersectionObserverが死んでも 1.2秒で強制表示
- * - LINE/アプリ内ブラウザの「2枚目以降が出ない」を根絶
+ * ✅ 強力版 Reveal
+ * - IntersectionObserverが壊れても 1.2秒で強制表示
+ * - アプリ内ブラウザの“スクロール検知死”を根絶
  */
 function RevealOnView({
   children,
@@ -136,7 +143,7 @@ function RevealOnView({
 
     let timeoutId: number | null = null;
 
-    // 1.2秒たっても出てなければ強制表示
+    // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
     timeoutId = window.setTimeout(() => {
       setShown(true);
     }, 1200);
@@ -175,6 +182,8 @@ function RevealOnView({
         .reveal {
           width: 100%;
           display: block;
+
+          /* ✅ “見えないまま”を作らないため、最悪でも後で必ず isShown になる */
           opacity: 0;
           transform: translate3d(0, 14px, 0);
           transition:
@@ -198,81 +207,178 @@ function RevealOnView({
   );
 }
 
-export default function Landing001Page() {
-  // ✅ CTAリンク（ここだけ本番URLに差し替え）
-  const CTA_LINK = 'https://anyaku.co.jp/';
+function CountdownHeader() {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [mounted, setMounted] = useState(false);
 
-  // ✅ 画像フォルダ
-  const BASE = '/lp-001';
+  useEffect(() => {
+    setMounted(true);
 
-  // 1.webp〜12.webp
-  const images = Array.from({ length: 12 }, (_, i) => `${i + 1}.webp`);
+    const PERIOD_SEC = 3 * 24 * 60 * 60;
 
-  /**
-   * ホットスポット座標は “%” 指定
-   * まずは最小：1,11はCTA／12はフッター3リンク
-   *
-   * ※ CTA/フッターの位置はデザインごとに変わるので
-   *   もし位置が違う場合は、left/top/width/heightを調整していく感じでOK
-   */
+    const tick = () => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      let remain = PERIOD_SEC - (nowSec % PERIOD_SEC);
+      if (remain === 0) remain = PERIOD_SEC;
+
+      const days = Math.floor(remain / (24 * 60 * 60));
+      const hours = Math.floor((remain % (24 * 60 * 60)) / (60 * 60));
+      const minutes = Math.floor((remain % (60 * 60)) / 60);
+      const seconds = remain % 60;
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  if (!mounted) return <div style={{ height: 53, background: '#1B2024' }} />;
+
+  const dd = String(timeLeft.days).padStart(2, '0');
+  const hh = String(timeLeft.hours).padStart(2, '0');
+  const mm = String(timeLeft.minutes).padStart(2, '0');
+  const ss = String(timeLeft.seconds).padStart(2, '0');
+
+  return (
+    <div className={`countdownRoot ${zenKaku.className}`}>
+      <div className="countdownInner">
+        <div className="countdownBadge">
+          <img src="/timer-left.svg" alt="特別キャンペーン 終了まで残り" className="badgeSvg" draggable={false} />
+        </div>
+
+        <div className="timer" aria-label="カウントダウン">
+          <div className="tItem">
+            <span className={`tNum ${jost.className}`}>{dd}</span>
+            <i className="tUnit">日</i>
+          </div>
+          <div className="tItem">
+            <span className={`tNum ${jost.className}`}>{hh}</span>
+            <i className="tUnit">時間</i>
+          </div>
+          <div className="tItem">
+            <span className={`tNum ${jost.className}`}>{mm}</span>
+            <i className="tUnit">分</i>
+          </div>
+          <div className="tItem">
+            <span className={`tNum ${jost.className}`}>{ss}</span>
+            <i className="tUnit">秒</i>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .countdownRoot {
+          width: 100%;
+          background: #1b2024;
+          overflow: hidden;
+        }
+        .countdownInner {
+          width: 100%;
+          height: 53px;
+          display: flex;
+          align-items: stretch;
+          background: #1b2024;
+          overflow: hidden;
+        }
+        .countdownBadge {
+          flex: 0 0 auto;
+          height: 53px;
+          width: clamp(140px, 36vw, 150px);
+          overflow: hidden;
+          line-height: 0;
+        }
+        .badgeSvg {
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+          object-position: center;
+        }
+        .timer {
+          flex: 1 1 auto;
+          min-width: 0;
+          height: 53px;
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: clamp(10px, 3vw, 18px);
+          padding-left: clamp(10px, 3vw, 16px);
+          padding-right: clamp(10px, 3vw, 16px);
+          overflow: hidden;
+        }
+        .tItem {
+          display: inline-flex;
+          align-items: baseline;
+          gap: clamp(4px, 1.2vw, 8px);
+          white-space: nowrap;
+          min-width: 0;
+        }
+        .tNum {
+          color: #fff12f;
+          font-weight: 500;
+          font-variant-numeric: tabular-nums;
+          line-height: 1;
+          letter-spacing: 0.8px;
+          font-size: clamp(24px, 8vw, 34.2px);
+        }
+        .tUnit {
+          color: #fff12f;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 1;
+          white-space: nowrap;
+          font-size: clamp(9px, 2.7vw, 11px);
+        }
+        @media (max-width: 380px) {
+          .timer {
+            gap: 10px;
+            padding-left: 10px;
+            padding-right: 12px;
+          }
+          .tNum {
+            font-size: 23px;
+            letter-spacing: 0.6px;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  const PURCHASE_LINK = 'https://anyaku.co.jp/';
+
   const hotspotsByFile: Record<string, Hotspot[]> = {
-    // 1.webp CTA（仮座標：以前のLPの値。合わなければ調整）
     '1.webp': [
-      {
-        left: 9.5,
+      { left: 9.5,
         top: 83.65,
         width: 81,
         height: 11.55,
-        href: CTA_LINK,
-        ariaLabel: 'テンプレ集を購入する（画像1）',
-      },
+         href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
     ],
-
-    // 11.webp CTA（仮座標：以前のLPの値。合わなければ調整）
     '11.webp': [
-      {
-        left: 9.5,
+      { left: 9.5,
         top: 87,
         width: 81,
         height: 11.55,
-        href: CTA_LINK,
-        ariaLabel: 'テンプレ集を購入する（画像11）',
-      },
+         href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
     ],
 
-    // 12.webp：フッター3リンク（内部リンク）
+    // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
     '12.webp': [
-      {
-        left: 6.94,
-        top: 76.83,
-        width: 20.0,
-        height: 18.42,
-        href: '/terms',
-        ariaLabel: '利用規約（001 フッター）',
-      },
-      {
-        left: 31.6,
-        top: 76.83,
-        width: 37.85,
-        height: 18.0,
-        href: '/privacy',
-        ariaLabel: 'プライバシーポリシー（001 フッター）',
-      },
-      {
-        left: 71.67,
-        top: 76.69,
-        width: 20.07,
-        height: 18.42,
-        href: '/company',
-        ariaLabel: '運営会社（001 フッター）',
-      },
+      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
+      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
     ],
   };
+
+  const images = ['1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp', '7.webp', '8.webp', '9.webp', '10.webp', '11.webp', '12.webp'];
 
   return (
     <main className="pageRoot">
       <div className="lpContainer">
-        {/* 固定ヘッダー：PCでも425px枠に収めて中央固定 */}
         <div className="fixedHeader">
           <CountdownHeader />
         </div>
@@ -282,26 +388,24 @@ export default function Landing001Page() {
         <div className="lpBody">
           {images.map((imgName, index) => {
             const hs = hotspotsByFile[imgName] ?? [];
-            const isFirstOrSecond = index === 0 || index === 1;
+
+            // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
+            const shouldReveal = index >= 1;
+            const isSecond = index === 1;
 
             const content = (
               <div className="lpSection">
                 <HotspotImage
-                  src={`${BASE}/${imgName}`}
-                  alt={`LP 001 Slide ${index + 1}`}
+                  src={`/lp-001/${imgName}`}
+                  alt={`Slide ${index + 1}`}
                   hotspots={hs}
-                  loading={isFirstOrSecond ? 'eager' : 'lazy'}
-                  fetchPriority={isFirstOrSecond ? 'high' : undefined}
+                  loading={index === 0 || isSecond ? 'eager' : 'lazy'}
+                  fetchPriority={index === 0 || isSecond ? 'high' : undefined}
                 />
               </div>
             );
 
-            // 1枚目は即表示、それ以外は強力Reveal（でも強制表示で詰まらない）
-            return (
-              <React.Fragment key={imgName}>
-                {index === 0 ? content : <RevealOnView enabled>{content}</RevealOnView>}
-              </React.Fragment>
-            );
+            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
           })}
         </div>
       </div>
@@ -330,7 +434,6 @@ export default function Landing001Page() {
           }
         }
 
-        /* ✅ PCで右側に黒帯が伸びないよう、枠の中央固定 */
         .fixedHeader {
           position: fixed;
           top: 0;
