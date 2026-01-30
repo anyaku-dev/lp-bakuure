@@ -219,10 +219,10 @@ export default function Landing001Page() {
     // 1.webp CTA（仮座標：以前のLPの値。合わなければ調整）
     '1.webp': [
       {
-        left: 11.81,
+        left: 9.5,
         top: 83.65,
-        width: 79.23,
-        height: 9.61,
+        width: 81,
+        height: 11.55,
         href: CTA_LINK,
         ariaLabel: 'テンプレ集を購入する（画像1）',
       },
@@ -231,40 +231,40 @@ export default function Landing001Page() {
     // 11.webp CTA（仮座標：以前のLPの値。合わなければ調整）
     '11.webp': [
       {
-        left: 12.08,
-        top: 80.54,
-        width: 79.0,
+        left: 9.5,
+        top: 87,
+        width: 81,
         height: 11.55,
         href: CTA_LINK,
         ariaLabel: 'テンプレ集を購入する（画像11）',
       },
     ],
 
-    // 12.webp フッター（内部リンク）
+    // 12.webp：フッター3リンク（内部リンク）
     '12.webp': [
       {
-        left: 10.56,
-        top: 80.0,
-        width: 12.85,
-        height: 7.91,
+        left: 6.94,
+        top: 76.83,
+        width: 20.0,
+        height: 18.42,
         href: '/terms',
-        ariaLabel: '利用規約（画像フッター）',
+        ariaLabel: '利用規約（001 フッター）',
       },
       {
-        left: 35.21,
-        top: 80.29,
-        width: 30.69,
-        height: 7.19,
+        left: 31.6,
+        top: 76.83,
+        width: 37.85,
+        height: 18.0,
         href: '/privacy',
-        ariaLabel: 'プライバシーポリシー（画像フッター）',
+        ariaLabel: 'プライバシーポリシー（001 フッター）',
       },
       {
-        left: 75.28,
-        top: 80.0,
-        width: 12.92,
-        height: 7.77,
+        left: 71.67,
+        top: 76.69,
+        width: 20.07,
+        height: 18.42,
         href: '/company',
-        ariaLabel: '運営会社（画像フッター）',
+        ariaLabel: '運営会社（001 フッター）',
       },
     ],
   };
