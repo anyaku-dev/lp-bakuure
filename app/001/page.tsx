@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -114,10 +113,9 @@ function HotspotImage({
 }
 
 /**
- * ✅ Reveal（アプリ内ブラウザ対応版）
- * - アプリ内ブラウザでの初回ロード時のタイミング問題を解決
- * - マウント後に遅延を設けて Observer を開始し、レイアウトの安定を待つ
- * - 万が一のためのフォールバックタイマーを追加
+ * ✅ Reveal（最終調整版）
+ * - アプリ内ブラウザでのタイミング問題を、Observerの遅延実行で解決
+ * - 冗長なフォールバックタイマーを削除し、アニメーションが確実に見えるように修正
  */
 function RevealOnView({
     children,
@@ -139,7 +137,6 @@ function RevealOnView({
         }
 
         let observer: IntersectionObserver;
-        let fallbackTimer: NodeJS.Timeout;
 
         // レイアウトが安定するのを待ってから監視を開始
         const initTimeout = setTimeout(() => {
@@ -147,26 +144,19 @@ function RevealOnView({
                 ([entry]) => {
                     if (entry.isIntersecting) {
                         setShown(true);
-                        clearTimeout(fallbackTimer); // 表示されたらフォールバックは不要
                         observer.unobserve(el);
                     }
                 },
                 {
-                    rootMargin: '0px 0px -100px 0px',
+                    rootMargin: '0px 0px -150px 0px', // 少し早めに検知
                     threshold: 0.01,
                 }
             );
             observer.observe(el);
-        }, 150); // 150msの遅延
-
-        // 3秒経っても表示されない場合の最終手段
-        fallbackTimer = setTimeout(() => {
-            setShown(true);
-        }, 3000);
+        }, 100); // 遅延を100msに短縮
 
         return () => {
             clearTimeout(initTimeout);
-            clearTimeout(fallbackTimer);
             if (observer && el) {
                 observer.unobserve(el);
             }
@@ -316,8 +306,8 @@ export default function LandingPage() {
                         const hs = hotspotsByFile[imgName] ?? [];
                         const shouldReveal = index >= 1;
                         
-                        // 修正：最初の3枚を先行読み込み
-                        const shouldLoadEagerly = index < 3;
+                        // 修正：最初の2枚のみ先行読み込み
+                        const shouldLoadEagerly = index < 2;
 
                         const content = (
                             <div className="lpSection">
