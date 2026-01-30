@@ -117,9 +117,9 @@ function HotspotImage({
 }
 
 /**
- * ✅ Reveal（最適化版）
- * - IntersectionObserverは使わず、スクロール/リサイズで「入った瞬間」を確実に拾う
- * - アプリ内ブラウザでも 3枚目以降が出ない事故を防ぐ
+ * ✅ 強力版 Reveal
+ * - IntersectionObserverが壊れても 1.2秒で強制表示
+ * - アプリ内ブラウザの“スクロール検知死”を根絶
  */
 function RevealOnView({
     children,
@@ -142,62 +142,48 @@ function RevealOnView({
             return;
         }
 
-        const parsePx = (v: string) => {
-            const n = parseFloat(v);
-            return Number.isFinite(n) ? n : 0;
+        let timeoutId: number | null = null;
+
+        // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
+// ただし「画面の近くにいる時だけ」強制表示する（遠いセクションはアニメーションのため未表示維持）
+timeoutId = window.setTimeout(() => {
+  const rect = el.getBoundingClientRect();
+  const near =
+    rect.top < window.innerHeight + 300 && rect.bottom > -300; // rootMargin相当の“近さ”
+  if (near) setShown(true);
+}, 1200);
+
+        if (typeof IntersectionObserver === 'undefined') {
+            setShown(true);
+            if (timeoutId) window.clearTimeout(timeoutId);
+            return;
+        }
+
+        const obs = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (entry && entry.isIntersecting) {
+                    setShown(true);
+                    obs.disconnect();
+                    if (timeoutId) window.clearTimeout(timeoutId);
+                }
+            },
+            { threshold: 0.01, rootMargin }
+        );
+
+        obs.observe(el);
+
+        return () => {
+            obs.disconnect();
+            if (timeoutId) window.clearTimeout(timeoutId);
         };
-
-        // 'top right bottom left' 形式を想定（bottomが無い場合はtopを流用）
-        const parts = rootMargin.split(' ');
-        const topMargin = parsePx(parts[0] ?? '0px');
-        const bottomMargin = parsePx(parts[2] ?? parts[0] ?? '0px');
-
-        let rafId: number | null = null;
-
-        const isInView = () => {
-            const rect = el.getBoundingClientRect();
-            return rect.top < window.innerHeight + bottomMargin && rect.bottom > -topMargin;
-        };
-
-        const cleanup = () => {
-            window.removeEventListener('scroll', onScroll);
-            window.removeEventListener('resize', onScroll);
-            window.removeEventListener('orientationchange', onScroll as any);
-            if (rafId != null) {
-                window.cancelAnimationFrame(rafId);
-                rafId = null;
-            }
-        };
-
-        const check = () => {
-            rafId = null;
-            if (isInView()) {
-                setShown(true);
-                cleanup();
-            }
-        };
-
-        const onScroll = () => {
-            if (rafId != null) return;
-            rafId = window.requestAnimationFrame(check);
-        };
-
-        // 初回判定（最初から見えているなら即表示）
-        check();
-
-        // スクロール/リサイズで「入った瞬間」を拾う（passiveで軽量化）
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', onScroll);
-        window.addEventListener('orientationchange', onScroll as any);
-
-        return cleanup;
     }, [enabled, rootMargin]);
 
     return (
         <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
             {children}
 
-            <style jsx>{`
+                  <style jsx>{`
   .reveal {
     width: 100%;
     display: block;
@@ -228,6 +214,8 @@ function RevealOnView({
     }
   }
 `}</style>
+
+
         </div>
     );
 }
