@@ -376,93 +376,22 @@ export default function LandingPage() {
     // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
     '12.webp': [
       { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
-      {
-        left: 35.21,
-        top: 64.5,
-        width: 30.69,
-        height: 7.19,
-        href: '/privacy',
-        ariaLabel: 'プライバシーポリシー（画像フッター）',
-      },
+      { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
       { left: 75.28, top: 64.5, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
     ],
   };
 
   const images = ['1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp', '7.webp', '8.webp', '9.webp', '10.webp', '11.webp', '12.webp'];
 
-  // ===============================
-  // ① CTA用 state + ref + useEffect
-  // ===============================
-  const CTA_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
-
-  const footerSentinelRef = useRef<HTMLDivElement | null>(null);
-  const [showCta, setShowCta] = useState(false);
-
-  useEffect(() => {
-    // ✅ PCは出さない（スマホだけ）
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (!isMobile) return;
-
-    let cleanupFns: Array<() => void> = [];
-
-    // ✅ 少しスクロールしたら表示（例：120px）
-    const onScroll = () => {
-      const y = window.scrollY || document.documentElement.scrollTop || 0;
-      if (y > 120) setShowCta(true);
-      else setShowCta(false);
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    cleanupFns.push(() => window.removeEventListener('scroll', onScroll));
-
-    // ✅ フッター領域まで来たら非表示（IntersectionObserverで監視）
-    const sentinel = footerSentinelRef.current;
-    if (!sentinel) return () => cleanupFns.forEach((fn) => fn());
-
-    if (typeof IntersectionObserver === 'undefined') {
-      // フォールバック：IOがない環境ではスクロール判定のみ（最悪OK）
-      return () => cleanupFns.forEach((fn) => fn());
-    }
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        // entry.isIntersecting === true → フッター付近に来た → CTAを消す
-        if (entry?.isIntersecting) {
-          setShowCta(false);
-        } else {
-          // フッターから離れていて、かつスクロールしているなら表示
-          const y = window.scrollY || document.documentElement.scrollTop || 0;
-          if (y > 120) setShowCta(true);
-        }
-      },
-      {
-        // ✅ 画面下部にフッターが"触れたら"消す
-        //   rootMargin の bottom を少しマイナスにすると、少し手前で消える
-        rootMargin: '0px 0px -10% 0px',
-        threshold: 0.01,
-      }
-    );
-
-    obs.observe(sentinel);
-    cleanupFns.push(() => obs.disconnect());
-
-    return () => cleanupFns.forEach((fn) => fn());
-  }, []);
-
   return (
     <main className="pageRoot">
-      {/* Google Tag Manager */}
-      <Script id="gtm" strategy="afterInteractive">
-        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-TN6P9QF8');`}
+      {/* <!-- Google Tag Manager --> */}
+      <Script id="gtm-init" strategy="afterInteractive">
+        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-TN6P9QF8');`}
       </Script>
-      {/* End Google Tag Manager */}
+      {/* <!-- End Google Tag Manager --> */}
 
-      {/* Google Tag Manager (noscript) */}
+      {/* <!-- Google Tag Manager (noscript) --> */}
       <noscript>
         <iframe
           src="https://www.googletagmanager.com/ns.html?id=GTM-TN6P9QF8"
@@ -471,7 +400,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           style={{ display: 'none', visibility: 'hidden' }}
         />
       </noscript>
-      {/* End Google Tag Manager (noscript) */}
+      {/* <!-- End Google Tag Manager (noscript) --> */}
 
       <div className="lpContainer">
         <div className="fixedHeader">
@@ -502,67 +431,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
             return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
           })}
-
-          {/* ✅ フッター監視用の見えない目印（最下部） */}
-          <div ref={footerSentinelRef} aria-hidden style={{ height: 1 }} />
         </div>
-
-        {/* ✅ 固定CTA（スマホで少しスクロール後に表示 / フッターで消える） */}
-        <a
-          href={CTA_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`fixedCta ${showCta ? 'isShown' : ''}`}
-          aria-label="購入へ進む"
-        >
-          <img src="/lp-001/cta-hover_btn.webp" alt="購入する" draggable={false} />
-          <style jsx>{`
-            .fixedCta {
-              position: fixed;
-              left: 50%;
-              transform: translateX(-50%);
-              bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-              width: min(92vw, 420px);
-              z-index: 1000;
-
-              display: block;
-              line-height: 0;
-              border-radius: 14px;
-              overflow: hidden;
-              box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
-
-              /* ✅ 初期は非表示 */
-              opacity: 0;
-              pointer-events: none;
-              transform: translateX(-50%) translate3d(0, 10px, 0);
-              transition:
-                opacity 220ms ease,
-                transform 220ms ease;
-              -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-              touch-action: manipulation;
-            }
-
-            .fixedCta.isShown {
-              opacity: 1;
-              pointer-events: auto;
-              transform: translateX(-50%) translate3d(0, 0, 0);
-            }
-
-            .fixedCta img {
-              width: 100%;
-              height: auto;
-              display: block;
-              user-select: none;
-              -webkit-user-drag: none;
-            }
-
-            @media (prefers-reduced-motion: reduce) {
-              .fixedCta {
-                transition: none;
-              }
-            }
-          `}</style>
-        </a>
       </div>
 
       <style jsx>{`
