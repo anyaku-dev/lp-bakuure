@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -117,117 +118,78 @@ function HotspotImage({
 }
 
 /**
- * ✅ Reveal（最適化版）
- * - IntersectionObserverは使わず、スクロール/リサイズで「入った瞬間」を確実に拾う
- * - アプリ内ブラウザでも 3枚目以降が出ない事故を防ぐ
+ * ✅ Reveal（IntersectionObserver版）
+ * - IntersectionObserver を使い、要素がビューポートに入ったかを効率的に監視
+ * - 遅延読み込みされる画像でも確実に動作
  */
-function RevealOnView({
+function Reveal({
     children,
     enabled = true,
-    rootMargin = '200px 0px 200px 0px',
+    rootMargin = '0px 0px -15% 0px',
+    triggerOnce = true,
 }: {
     children: React.ReactNode;
     enabled?: boolean;
     rootMargin?: string;
+    triggerOnce?: boolean;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
-    const [shown, setShown] = useState(!enabled);
+    const [isIntersecting, setIntersecting] = useState(!enabled);
 
     useEffect(() => {
         if (!enabled) return;
 
-        const el = ref.current;
-        if (!el) {
-            setShown(true);
-            return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIntersecting(true);
+                    if (triggerOnce && ref.current) {
+                        observer.unobserve(ref.current);
+                    }
+                }
+            },
+            { rootMargin }
+        );
+
+        if (ref.current) {
+            observer.observe(ref.current);
         }
 
-        const parsePx = (v: string) => {
-            const n = parseFloat(v);
-            return Number.isFinite(n) ? n : 0;
-        };
-
-        // 'top right bottom left' 形式を想定（bottomが無い場合はtopを流用）
-        const parts = rootMargin.split(' ');
-        const topMargin = parsePx(parts[0] ?? '0px');
-        const bottomMargin = parsePx(parts[2] ?? parts[0] ?? '0px');
-
-        let rafId: number | null = null;
-
-        const isInView = () => {
-            const rect = el.getBoundingClientRect();
-            return rect.top < window.innerHeight + bottomMargin && rect.bottom > -topMargin;
-        };
-
-        const cleanup = () => {
-            window.removeEventListener('scroll', onScroll);
-            window.removeEventListener('resize', onScroll);
-            window.removeEventListener('orientationchange', onScroll as any);
-            if (rafId != null) {
-                window.cancelAnimationFrame(rafId);
-                rafId = null;
+        return () => {
+            if (ref.current) {
+                observer.unobserve(ref.current);
             }
         };
-
-        const check = () => {
-            rafId = null;
-            if (isInView()) {
-                setShown(true);
-                cleanup();
-            }
-        };
-
-        const onScroll = () => {
-            if (rafId != null) return;
-            rafId = window.requestAnimationFrame(check);
-        };
-
-        // 初回判定（最初から見えているなら即表示）
-        check();
-
-        // スクロール/リサイズで「入った瞬間」を拾う（passiveで軽量化）
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', onScroll);
-        window.addEventListener('orientationchange', onScroll as any);
-
-        return cleanup;
-    }, [enabled, rootMargin]);
+    }, [enabled, rootMargin, triggerOnce]);
 
     return (
-        <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
+        <div ref={ref} className={`reveal ${isIntersecting ? 'isShown' : ''}`}>
             {children}
-
             <style jsx>{`
-  .reveal {
-    width: 100%;
-    display: block;
+      .reveal {
+        width: 100%;
+        display: block;
+        opacity: 0;
+        transform: translate3d(0, 36px, 0);
+        transition:
+          opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
+          transform 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms;
+        will-change: opacity, transform;
+      }
 
-    /* 出現前：完全に透明＋下から */
-    opacity: 0;
-    transform: translate3d(0, 36px, 0);
+      .reveal.isShown {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
 
-    /* ゆっくり＋少し遅れて出る */
-    transition:
-      opacity 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
-      transform 1200ms cubic-bezier(0.22, 1, 0.36, 1) 180ms;
-
-    will-change: opacity, transform;
-  }
-
-  .reveal.isShown {
-    /* 出現後 */
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .reveal {
-      transition: none;
-      opacity: 1;
-      transform: none;
-    }
-  }
-`}</style>
+      @media (prefers-reduced-motion: reduce) {
+        .reveal {
+          transition: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
+    `}</style>
         </div>
     );
 }
@@ -346,7 +308,7 @@ function CountdownHeader() {
           font-variant-numeric: tabular-nums;
           line-height: 1;
           letter-spacing: 0.8px;
-          font-size: clamp(24px, 8vw, 34.2px);
+          font-size: clamp(23px, 6.5vw, 28px);
         }
         .tUnit {
           color: #fff12f;
@@ -437,7 +399,7 @@ export default function LandingPage() {
                     {images.map((imgName, index) => {
                         const hs = hotspotsByFile[imgName] ?? [];
 
-                        // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
+                        // ✅ 1枚目は即表示、2枚目以降は Reveal
                         const shouldReveal = index >= 1;
                         const isSecond = index === 1;
 
@@ -453,7 +415,7 @@ export default function LandingPage() {
                             </div>
                         );
 
-                        return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
+                        return <React.Fragment key={imgName}>{shouldReveal ? <Reveal>{content}</Reveal> : content}</React.Fragment>;
                     })}
                 </div>
             </div>
