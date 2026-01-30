@@ -113,6 +113,12 @@ function HotspotImage({
     );
 }
 
+/**
+ * ✅ Reveal（アプリ内ブラウザ対応版）
+ * - アプリ内ブラウザでの初回ロード時のタイミング問題を解決
+ * - マウント後に遅延を設けて Observer を開始し、レイアウトの安定を待つ
+ * - 万が一のためのフォールバックタイマーを追加
+ */
 function RevealOnView({
     children,
     enabled = true,
@@ -132,23 +138,38 @@ function RevealOnView({
             return;
         }
 
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    setShown(true);
-                    observer.unobserve(el);
-                }
-            },
-            {
-                rootMargin: '0px 0px -100px 0px',
-                threshold: 0.01, // わずかでも表示されたらトリガー
-            }
-        );
+        let observer: IntersectionObserver;
+        let fallbackTimer: NodeJS.Timeout;
 
-        observer.observe(el);
+        // レイアウトが安定するのを待ってから監視を開始
+        const initTimeout = setTimeout(() => {
+            observer = new IntersectionObserver(
+                ([entry]) => {
+                    if (entry.isIntersecting) {
+                        setShown(true);
+                        clearTimeout(fallbackTimer); // 表示されたらフォールバックは不要
+                        observer.unobserve(el);
+                    }
+                },
+                {
+                    rootMargin: '0px 0px -100px 0px',
+                    threshold: 0.01,
+                }
+            );
+            observer.observe(el);
+        }, 150); // 150msの遅延
+
+        // 3秒経っても表示されない場合の最終手段
+        fallbackTimer = setTimeout(() => {
+            setShown(true);
+        }, 3000);
 
         return () => {
-            observer.disconnect();
+            clearTimeout(initTimeout);
+            clearTimeout(fallbackTimer);
+            if (observer && el) {
+                observer.unobserve(el);
+            }
         };
     }, [enabled, shown]);
 
@@ -159,20 +180,18 @@ function RevealOnView({
       .reveal {
         width: 100%;
         display: block;
-        /* 修正：opacity: 0 と visibility: hidden を併用 */
         opacity: 0;
         visibility: hidden;
         transform: translate3d(0, 20px, 0);
         transition:
           opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms,
           transform 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms,
-          visibility 0s 0s; /* isShownになったら即座にvisibleに */
+          visibility 0s 0s;
         will-change: opacity, transform, visibility;
       }
 
       .reveal.isShown {
         opacity: 1;
-        /* 修正：visibility を visible に */
         visibility: visible;
         transform: translate3d(0, 0, 0);
         transition:
@@ -296,7 +315,9 @@ export default function LandingPage() {
                     {images.map((imgName, index) => {
                         const hs = hotspotsByFile[imgName] ?? [];
                         const shouldReveal = index >= 1;
-                        const isSecond = index === 1;
+                        
+                        // 修正：最初の3枚を先行読み込み
+                        const shouldLoadEagerly = index < 3;
 
                         const content = (
                             <div className="lpSection">
@@ -304,8 +325,8 @@ export default function LandingPage() {
                                     src={`/lp-001/${imgName}`}
                                     alt={`Slide ${index + 1}`}
                                     hotspots={hs}
-                                    loading={index === 0 || isSecond ? 'eager' : 'lazy'}
-                                    fetchPriority={index === 0 || isSecond ? 'high' : undefined}
+                                    loading={shouldLoadEagerly ? 'eager' : 'lazy'}
+                                    fetchPriority={shouldLoadEagerly ? 'high' : 'auto'}
                                 />
                             </div>
                         );
