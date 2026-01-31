@@ -132,7 +132,7 @@ export default function PrivacyPage() {
           </section>
 
           <p style={{ ...styles.note, marginTop: 18 }}>
-            制定日・最終改定日：必要に応じて追記してください。
+            最終改定日：2026年1月21日
           </p>
         </article>
       </div>

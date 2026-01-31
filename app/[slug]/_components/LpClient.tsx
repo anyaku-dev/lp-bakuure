@@ -129,7 +129,7 @@ export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuIt
   );
 }
 
-// --- 固定フッターCTA (スクロール制御付き) ---
+// --- 固定フッターCTA (修正版: 表示時のみクリック有効化) ---
 export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -139,20 +139,17 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
       const windowHeight = window.innerHeight;
       const docHeight = document.documentElement.scrollHeight;
 
-      // 1. 出現条件: showAfterPx以上スクロールしているか
+      // 1. 出現条件
       const isAfterStart = scrollY >= (config.showAfterPx || 0);
 
-      // 2. 非表示条件: hideBeforeBottomPxより手前にいるか (最下部付近で消す)
-      // 残りのスクロール量
+      // 2. 非表示条件 (最下部付近で消す)
       const remaining = docHeight - (scrollY + windowHeight);
       const isBeforeEnd = config.hideBeforeBottomPx > 0 ? remaining > config.hideBeforeBottomPx : true;
 
       setIsVisible(isAfterStart && isBeforeEnd);
     };
 
-    // 初回チェック
     handleScroll();
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [config.showAfterPx, config.hideBeforeBottomPx]);
@@ -165,14 +162,17 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}
     >
-      <div className="w-full max-w-[425px] pointer-events-auto relative">
+      <div className="w-full max-w-[425px] pointer-events-none relative">
         <div 
-           className="absolute bottom-0 left-0 w-full flex justify-center" 
+           className="absolute bottom-0 left-0 w-full flex justify-center pointer-events-none" 
            style={{ paddingBottom: `${config.bottomMargin}px` }}
         >
+          {/* ★修正ポイント: isVisible が true の時だけ pointer-events-auto にする */}
           <a 
             href={config.href} 
-            className="block transition-transform active:scale-[0.98] hover:opacity-95"
+            className={`block transition-transform active:scale-[0.98] hover:opacity-95 ${
+              isVisible ? 'pointer-events-auto' : 'pointer-events-none'
+            }`}
             style={{ width: `${config.widthPercent}%` }}
           >
             <img 

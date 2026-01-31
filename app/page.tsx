@@ -1,8 +1,14 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import Script from 'next/script';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
 
+// ==========================================
+// フォント設定
+// ==========================================
 const jost = Jost({
   subsets: ['latin'],
   weight: ['500'],
@@ -15,197 +21,85 @@ const zenKaku = Zen_Kaku_Gothic_New({
   display: 'swap',
 });
 
-type Hotspot = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+// ==========================================
+// 設定・定数
+// ==========================================
+
+// 購入リンク（あとから変数で変更しやすいように管理）
+const PURCHASE_LINK = 'https://buy.stripe.com/8x214m9tW3vV6dMdzCeZ202';
+
+// GTM ID
+const GTM_ID = 'GTM-TN6P9QF8';
+
+// アニメーション設定（後から編集しやすいようにメモ）
+// 出現速度: duration-1000 (1000ms)
+// 遅延: delay-0 (0ms)
+// イージング: ease-out
+const ANIMATION_CLASS_VISIBLE = 'opacity-100 translate-y-0';
+const ANIMATION_CLASS_HIDDEN = 'opacity-0 translate-y-10';
+const ANIMATION_TRANSITION = 'transition-all duration-1000 ease-out';
+
+// ==========================================
+// 型定義
+// ==========================================
+
+type LinkArea = {
+  left: number; // %
+  top: number; // %
+  width: number; // %
+  height: number; // %
   href: string;
   ariaLabel: string;
 };
 
-function HotspotImage({
-  src,
-  alt,
-  hotspots = [],
-  loading = 'lazy',
-  fetchPriority,
-}: {
+type ImageData = {
   src: string;
   alt: string;
-  hotspots?: Hotspot[];
-  loading?: 'eager' | 'lazy';
-  fetchPriority?: 'high' | 'low' | 'auto';
-}) {
-  const imgProps: React.ImgHTMLAttributes<HTMLImageElement> & {
-    fetchPriority?: 'high' | 'low' | 'auto';
-  } = {
-    src,
-    alt,
-    className: 'hsImg',
-    loading,
-    draggable: false,
-    decoding: 'async',
-    onContextMenu: (e) => e.preventDefault(),
-    onDragStart: (e) => e.preventDefault(),
-    ...(fetchPriority ? { fetchPriority } : {}),
-  };
+  links?: LinkArea[];
+};
 
-  return (
-    <div className="hsWrap">
-      <img {...imgProps} />
+// ==========================================
+// 画像データ定義
+// ==========================================
 
-      <div className="hsLayer" aria-hidden={hotspots.length === 0}>
-        {hotspots.map((h, idx) => {
-          const isExternal = /^https?:\/\//.test(h.href);
+const IMAGES: ImageData[] = [
+  {
+    src: '/lp-001/1.webp',
+    alt: 'LP Image 1',
+    links: [
+      { left: 9.5, top: 83.65, width: 81, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
+    ],
+  },
+  { src: '/lp-001/2.webp', alt: 'LP Image 2' },
+  { src: '/lp-001/3.webp', alt: 'LP Image 3' },
+  { src: '/lp-001/4.webp', alt: 'LP Image 4' },
+  { src: '/lp-001/5.webp', alt: 'LP Image 5' },
+  { src: '/lp-001/6.webp', alt: 'LP Image 6' },
+  { src: '/lp-001/7.webp', alt: 'LP Image 7' },
+  { src: '/lp-001/8.webp', alt: 'LP Image 8' },
+  { src: '/lp-001/9.webp', alt: 'LP Image 9' },
+  { src: '/lp-001/10.webp', alt: 'LP Image 10' },
+  {
+    src: '/lp-001/11.webp',
+    alt: 'LP Image 11',
+    links: [
+      { left: 9.5, top: 87, width: 81, height: 11.55, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
+    ],
+  },
+  {
+    src: '/lp-001/12.webp',
+    alt: 'LP Image 12',
+    links: [
+      { left: 10.56, top: 64.5, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
+      { left: 35.21, top: 64.5, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
+      { left: 75.28, top: 64.5, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
+    ],
+  },
+];
 
-          return (
-            <a
-              key={idx}
-              href={h.href}
-              target={isExternal ? '_blank' : undefined}
-              rel={isExternal ? 'noopener noreferrer' : undefined}
-              aria-label={h.ariaLabel}
-              className="hsLink"
-              style={{
-                left: `${h.left}%`,
-                top: `${h.top}%`,
-                width: `${h.width}%`,
-                height: `${h.height}%`,
-              }}
-            />
-          );
-        })}
-      </div>
-
-      <style jsx>{`
-        .hsWrap {
-          position: relative;
-          width: 100%;
-        }
-        .hsImg {
-          width: 100%;
-          height: auto;
-          display: block;
-          user-select: none;
-          -webkit-user-drag: none;
-        }
-
-        /* ✅ iOS/アプリ内ブラウザ対策：必ず画像より上に */
-        .hsLayer {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          z-index: 5;
-        }
-        .hsLink {
-          position: absolute;
-          display: block;
-          pointer-events: auto;
-          cursor: pointer;
-          border-radius: 10px;
-          z-index: 6;
-
-          /* ✅ iOSのタップ判定を強める */
-          -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-          touch-action: manipulation;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/**
- * ✅ 強力版 Reveal
- * - IntersectionObserverが壊れても 1.2秒で強制表示
- * - アプリ内ブラウザの“スクロール検知死”を根絶
- */
-function RevealOnView({
-  children,
-  enabled = true,
-  rootMargin = '200px 0px 200px 0px',
-}: {
-  children: React.ReactNode;
-  enabled?: boolean;
-  rootMargin?: string;
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [shown, setShown] = useState(!enabled);
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    const el = ref.current;
-    if (!el) {
-      setShown(true);
-      return;
-    }
-
-    let timeoutId: number | null = null;
-
-    // ✅ 1.2秒たっても出てなければ強制表示（LINE等対策）
-    timeoutId = window.setTimeout(() => {
-      setShown(true);
-    }, 1200);
-
-    if (typeof IntersectionObserver === 'undefined') {
-      setShown(true);
-      if (timeoutId) window.clearTimeout(timeoutId);
-      return;
-    }
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry && entry.isIntersecting) {
-          setShown(true);
-          obs.disconnect();
-          if (timeoutId) window.clearTimeout(timeoutId);
-        }
-      },
-      { threshold: 0.01, rootMargin }
-    );
-
-    obs.observe(el);
-
-    return () => {
-      obs.disconnect();
-      if (timeoutId) window.clearTimeout(timeoutId);
-    };
-  }, [enabled, rootMargin]);
-
-  return (
-    <div ref={ref} className={`reveal ${shown ? 'isShown' : ''}`}>
-      {children}
-
-      <style jsx>{`
-        .reveal {
-          width: 100%;
-          display: block;
-
-          /* ✅ “見えないまま”を作らないため、最悪でも後で必ず isShown になる */
-          opacity: 0;
-          transform: translate3d(0, 14px, 0);
-          transition:
-            opacity 520ms cubic-bezier(0.2, 0.9, 0.2, 1),
-            transform 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
-          will-change: opacity, transform;
-        }
-        .reveal.isShown {
-          opacity: 1;
-          transform: translate3d(0, 0, 0);
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .reveal {
-            transition: none;
-            opacity: 1;
-            transform: none;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
+// ==========================================
+// コンポーネント
+// ==========================================
 
 function CountdownHeader() {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -234,6 +128,7 @@ function CountdownHeader() {
     return () => window.clearInterval(id);
   }, []);
 
+  // SSR/CSR差分によるガタつき防止（元コード同様）
   if (!mounted) return <div style={{ height: 53, background: '#1B2024' }} />;
 
   const dd = String(timeLeft.days).padStart(2, '0');
@@ -245,7 +140,12 @@ function CountdownHeader() {
     <div className={`countdownRoot ${zenKaku.className}`}>
       <div className="countdownInner">
         <div className="countdownBadge">
-          <img src="/timer-left.svg" alt="特別キャンペーン 終了まで残り" className="badgeSvg" draggable={false} />
+          <img
+            src="/lp-001/timer-left.svg"
+            alt="特別キャンペーン 終了まで残り"
+            className="badgeSvg"
+            draggable={false}
+          />
         </div>
 
         <div className="timer" aria-label="カウントダウン">
@@ -321,7 +221,7 @@ function CountdownHeader() {
           font-variant-numeric: tabular-nums;
           line-height: 1;
           letter-spacing: 0.8px;
-          font-size: clamp(24px, 8vw, 34.2px);
+          font-size: clamp(23px, 6.5vw, 28px);
         }
         .tUnit {
           color: #fff12f;
@@ -347,123 +247,145 @@ function CountdownHeader() {
   );
 }
 
-export default function LandingPage() {
-  const PURCHASE_LINK = 'https://anyaku.co.jp/';
+const FadeInImage = ({ data, index }: { data: ImageData; index: number }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const hotspotsByFile: Record<string, Hotspot[]> = {
-    '1.webp': [
-      { left: 9, top: 82, width: 82, height: 13, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像1）' },
-    ],
-    '2.webp': [
-      { left: 9, top: 78.5, width: 82, height: 11, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像2）' },
-    ],
-    '9.webp': [{ left: 24.2, top: 28.7, width: 20.0, height: 2.6, href: PURCHASE_LINK, ariaLabel: 'こちらから（画像9）' }],
-    '11.webp': [
-      { left: 9, top: 82.5, width: 82, height: 12, href: PURCHASE_LINK, ariaLabel: 'テンプレ集を購入する（画像11）' },
-    ],
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: '0px 0px -10% 0px', // 画面の下10%に入ったら発火
+        threshold: 0,
+      }
+    );
 
-    // 12.webpのホットスポットも残す（ただし「確実リンク」は RealFooterLinks が担保）
-    '12.webp': [
-      { left: 10.56, top: 80.0, width: 12.85, height: 7.91, href: '/terms', ariaLabel: '利用規約（画像フッター）' },
-      { left: 35.21, top: 80.29, width: 30.69, height: 7.19, href: '/privacy', ariaLabel: 'プライバシーポリシー（画像フッター）' },
-      { left: 75.28, top: 80.0, width: 12.92, height: 7.77, href: '/company', ariaLabel: '運営会社（画像フッター）' },
-    ],
-  };
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
 
-  const images = ['1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp', '7.webp', '8.webp', '9.webp', '10.webp', '11.webp', '12.webp'];
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <main className="pageRoot">
-      <div className="lpContainer">
-        <div className="fixedHeader">
-          <CountdownHeader />
+    <div
+      ref={ref}
+      className={`relative w-full ${ANIMATION_TRANSITION} ${
+        isVisible ? ANIMATION_CLASS_VISIBLE : ANIMATION_CLASS_HIDDEN
+      }`}
+    >
+      <Image
+        src={data.src}
+        alt={data.alt}
+        width={0}
+        height={0}
+        sizes="(max-width: 768px) 100vw, 425px"
+        className="w-full h-auto block"
+        priority={index < 2} // ファーストビュー付近は優先読み込み
+      />
+      {data.links?.map((link, i) => (
+        <Link
+          key={i}
+          href={link.href}
+          aria-label={link.ariaLabel}
+          className="absolute block z-10"
+          style={{
+            left: `${link.left}%`,
+            top: `${link.top}%`,
+            width: `${link.width}%`,
+            height: `${link.height}%`,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+export default function LpPage() {
+  const [showCta, setShowCta] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const distanceToBottom = documentHeight - (scrollY + windowHeight);
+
+      // ページトップから1000pxスクロールしたときに出現し、
+      // ページの最下部から1000pxより後にスクロールした時は消える（残り1000px未満）
+      setShowCta(scrollY > 1000 && distanceToBottom > 1000);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // 初期チェック
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <>
+      <Script id="gtm-script" strategy="afterInteractive">
+        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','${GTM_ID}');`}
+      </Script>
+      <noscript>
+        <iframe
+          src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+          height="0"
+          width="0"
+          style={{ display: 'none', visibility: 'hidden' }}
+        />
+      </noscript>
+
+      <main className="min-h-screen bg-white">
+        {/* 固定ヘッダー */}
+        <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
+          <div className="w-full md:max-w-[425px] pointer-events-auto shadow-lg">
+            <CountdownHeader />
+          </div>
         </div>
 
-        <div className="headerSpacer" aria-hidden />
+        {/* ヘッダー分のスペーサー: PCでも画像幅(425px)に合わせるよう修正 */}
+<div className="w-full md:max-w-[425px] mx-auto h-[53px] bg-[#1B2024]" />
 
-        <div className="lpBody">
-          {images.map((imgName, index) => {
-            const hs = hotspotsByFile[imgName] ?? [];
+        <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
+          {IMAGES.map((img, index) => (
+            <section key={index} className="w-full">
+              <FadeInImage data={img} index={index} />
+            </section>
+          ))}
 
-            // ✅ 1枚目は即表示、2枚目以降は Reveal（ただし壊れても強制表示される）
-            const shouldReveal = index >= 1;
-            const isSecond = index === 1;
-
-            const content = (
-              <div className="lpSection">
-                <HotspotImage
-                  src={`/${imgName}`}
-                  alt={`Slide ${index + 1}`}
-                  hotspots={hs}
-                  loading={index === 0 || isSecond ? 'eager' : 'lazy'}
-                  fetchPriority={index === 0 || isSecond ? 'high' : undefined}
+          <div
+            className={`fixed bottom-0 left-0 w-full flex justify-center z-50 pointer-events-none transition-opacity duration-500 ${
+              showCta ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <div className={`w-full md:max-w-[425px] flex justify-center pb-[20px] ${showCta ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+              <Link
+                href={PURCHASE_LINK}
+                className="block relative"
+                style={{ width: '80.47%' }}
+              >
+                <Image
+                  src="/lp-001/cta-hover.webp"
+                  alt="テンプレ集を購入する"
+                  width={0}
+                  height={0}
+                  sizes="(max-width: 768px) 80vw, 342px"
+                  className="w-full h-auto block"
                 />
-              </div>
-            );
-
-            return <React.Fragment key={imgName}>{shouldReveal ? <RevealOnView enabled>{content}</RevealOnView> : content}</React.Fragment>;
-          })}
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <style jsx>{`
-        .pageRoot {
-          min-height: 100vh;
-          background: #f3f4f6;
-          display: flex;
-          justify-content: center;
-          overflow-x: hidden;
-        }
-
-        .lpContainer {
-          width: 100%;
-          background: #ffffff;
-          position: relative;
-          min-height: 100vh;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
-          overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-          .lpContainer {
-            width: clamp(425px, 40vw, 40vw);
-          }
-        }
-
-        .fixedHeader {
-          position: fixed;
-          top: 0;
-          z-index: 999;
-          background: #1b2024;
-          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
-          left: 0;
-          width: 100%;
-        }
-
-        @media (min-width: 768px) {
-          .fixedHeader {
-            left: 50%;
-            transform: translateX(-50%);
-            width: clamp(425px, 40vw, 40vw);
-          }
-        }
-
-        .headerSpacer {
-          height: 53px;
-          width: 100%;
-        }
-
-        .lpBody {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-        }
-
-        .lpSection {
-          width: 100%;
-          background: #fafafa;
-        }
-      `}</style>
-    </main>
+      </main>
+    </>
   );
 }

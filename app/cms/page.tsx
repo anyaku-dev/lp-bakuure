@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  getLps, saveLp, uploadImage, generateRandomPassword, deleteLp,
+  getLps, saveLp, uploadImage, generateRandomPassword, deleteLp, duplicateLp, getBlobList, // ★追加: getBlobList
   getGlobalSettings, saveGlobalSettings,
   LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig
 } from './actions';
@@ -39,7 +39,6 @@ const EMPTY_FOOTER_CTA: FooterCtaConfig = {
   href: '',
   widthPercent: 90,
   bottomMargin: 20,
-  // 追加: スクロール制御の初期値
   showAfterPx: 0,
   hideBeforeBottomPx: 0
 };
@@ -84,7 +83,6 @@ const normalizeLp = (lp: Partial<LpData>): LpData => {
       ...(lp.footerCta || {}),
       widthPercent: lp.footerCta?.widthPercent ?? 90,
       bottomMargin: lp.footerCta?.bottomMargin ?? 20,
-      // 追加: 正規化処理
       showAfterPx: lp.footerCta?.showAfterPx ?? 0,
       hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0,
     },
@@ -113,11 +111,83 @@ const normalizeGlobal = (g: Partial<GlobalSettings>): GlobalSettings => {
   };
 };
 
+// --- ローディングコンポーネント ---
+const LoadingOverlay = ({ isVisible }: { isVisible: boolean }) => {
+  if (!isVisible) return null;
+  return (
+    <div className={styles.loadingOverlay}>
+      <div className={styles.spinner}></div>
+      <span className={styles.loadingText}>Processing...</span>
+    </div>
+  );
+};
+
+// ★追加: 画像ライブラリモーダル
+const ImageLibrary = ({ 
+  isOpen, 
+  onClose, 
+  onSelect 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSelect: (url: string) => void;
+}) => {
+  const [images, setImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // モーダルが開いた時にリストを取得
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      getBlobList()
+        .then(setImages)
+        .catch(err => alert('読み込みエラー:' + err))
+        .finally(() => setLoading(false));
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.libraryContainer} onClick={onClose}>
+      <div className={styles.libraryContent} onClick={e => e.stopPropagation()}>
+        <div className={styles.libraryHeader}>
+          <h3 style={{margin:0}}>画像ライブラリ (最新100件)</h3>
+          <button onClick={onClose} className={styles.btnCloseLibrary}>閉じる</button>
+        </div>
+        <div className={styles.libraryBody}>
+          {loading ? (
+            <p style={{textAlign:'center', color:'#888'}}>読み込み中...</p>
+          ) : (
+            <div className={styles.imageGrid}>
+              {images.map((url, i) => (
+                <div key={i} className={styles.gridItem} onClick={() => { onSelect(url); onClose(); }}>
+                  <img src={url} loading="lazy" alt="uploaded" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function CmsPage() {
   const [lps, setLps] = useState<LpData[]>([]);
   const [editingLp, setEditingLp] = useState<LpData | null>(null);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
   const [loading, setLoading] = useState(false);
+
+  // ★追加: ライブラリ用のState
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [onLibrarySelect, setOnLibrarySelect] = useState<((url: string) => void) | null>(null);
+
+  // ★追加: ライブラリを開くヘルパー関数
+  const openLibrary = (callback: (url: string) => void) => {
+    setOnLibrarySelect(() => callback);
+    setIsLibraryOpen(true);
+  };
 
   useEffect(() => {
     loadData();
@@ -143,6 +213,21 @@ export default function CmsPage() {
 
   const handleEdit = (lp: LpData) => {
     setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
+  };
+
+  // 複製ボタンのハンドラ
+  const handleDuplicate = async (id: string) => {
+    if (!confirm('このプロジェクトを複製しますか？')) return;
+    setLoading(true);
+    try {
+      await duplicateLp(id);
+      await loadData();
+      alert('プロジェクトを複製しました');
+    } catch (e: any) {
+      alert('エラー: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveLp = async () => {
@@ -361,12 +446,18 @@ export default function CmsPage() {
     setEditingLp({ ...editingLp, images: newImages });
   };
 
+  const loadingOverlay = <LoadingOverlay isVisible={loading} />;
+  // ★追加: モーダル要素
+  const libraryModal = <ImageLibrary isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(url) => onLibrarySelect?.(url)} />;
+
   if (editingLp) {
     const h = editingLp.header;
     const f = editingLp.footerCta;
 
     return (
       <div className={styles.container}>
+        {loadingOverlay}
+        {libraryModal}
         <div className={styles.editorHeader}>
           <h2 className={styles.pageTitle} style={{margin:0}}>
             編集: {editingLp.title}
@@ -406,6 +497,20 @@ export default function CmsPage() {
                   <option value="public">{STATUS_LABELS.public}</option>
                 </select>
               </div>
+
+              {editingLp.status === 'private' && (
+                <div className={styles.row}>
+                  <label className={styles.label}>閲覧パスワード</label>
+                  <input 
+                    type="text" 
+                    className={styles.input} 
+                    value={editingLp.password ?? ''} 
+                    placeholder="パスワードを入力"
+                    onChange={e => setEditingLp({...editingLp, password: e.target.value})} 
+                  />
+                  <p className={styles.subLabel} style={{marginTop:4}}>※このパスワードを知っている人だけが閲覧できます</p>
+                </div>
+              )}
               
               <div className={styles.row} style={{borderTop:'1px dashed #e5e5e5', paddingTop:'20px'}}>
                 <label className={styles.label}>ヘッダー表示設定</label>
@@ -441,7 +546,11 @@ export default function CmsPage() {
                 <div style={{background:'#f9f9f9', padding:'16px', borderRadius:'8px', marginBottom:'24px'}}>
                   <div className={styles.row}>
                     <label className={styles.label}>ロゴ画像</label>
-                    <input key={h.logoSrc || 'logo'} type="file" className={styles.input} accept="image/*" onChange={handleHeaderLogoUpload} />
+                    {/* ★追加: ファイル選択とライブラリボタンの横並び */}
+                    <div style={{display:'flex', gap:8}}>
+                      <input key={h.logoSrc || 'logo'} type="file" className={styles.input} accept="image/*" onChange={handleHeaderLogoUpload} style={{flex:1}} />
+                      <button onClick={() => openLibrary(url => setEditingLp(prev => prev ? {...prev, header: {...prev.header, logoSrc: url}} : null))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                    </div>
                     {h.logoSrc && <img src={h.logoSrc} alt="logo" style={{height:40, marginTop:8}} />}
                   </div>
                   
@@ -479,7 +588,11 @@ export default function CmsPage() {
                   <div style={{background:'#f9f9f9', padding:'16px', borderRadius:'8px', marginBottom:'24px'}}>
                      <div className={styles.row}>
                         <label className={styles.label}>ボタン画像</label>
-                        <input key={f.imageSrc || 'cta'} type="file" className={styles.input} accept="image/*" onChange={handleFooterCtaImageUpload} />
+                        {/* ★追加: ファイル選択とライブラリボタンの横並び */}
+                        <div style={{display:'flex', gap:8}}>
+                           <input key={f.imageSrc || 'cta'} type="file" className={styles.input} accept="image/*" onChange={handleFooterCtaImageUpload} style={{flex:1}} />
+                           <button onClick={() => openLibrary(url => setEditingLp(prev => prev ? {...prev, footerCta: {...prev.footerCta, imageSrc: url}} : null))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                        </div>
                         {f.imageSrc && <img src={f.imageSrc} alt="cta" style={{width:'100%', maxWidth:'200px', marginTop:8}} />}
                      </div>
                      <div className={styles.row}>
@@ -499,7 +612,6 @@ export default function CmsPage() {
                             value={f.bottomMargin ?? 20} onChange={e => setEditingLp({...editingLp, footerCta: {...f, bottomMargin: Number(e.target.value)}})} />
                         </div>
                      </div>
-                     {/* 追加: スクロール出現/消失設定 */}
                      <div className={styles.grid2}>
                         <div>
                           <label className={styles.label}>出現位置 (px)</label>
@@ -564,13 +676,21 @@ export default function CmsPage() {
 
               <div className={styles.row}>
                  <label className={styles.label}>Favicon (上書き)</label>
-                 <input key={editingLp.customFavicon || 'fav'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customFavicon')} />
+                 {/* ★追加: ファイル選択とライブラリボタンの横並び */}
+                 <div style={{display:'flex', gap:8}}>
+                   <input key={editingLp.customFavicon || 'fav'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customFavicon')} style={{flex:1}} />
+                   <button onClick={() => openLibrary(url => setEditingLp(prev => prev ? {...prev, customFavicon: url} : null))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                 </div>
                  <p className={styles.textSmall}>推奨: .png, .ico (正方形)</p>
                  {editingLp.customFavicon && <img src={editingLp.customFavicon} alt="icon" style={{width:32, height:32, marginTop:4}} />}
               </div>
               <div className={styles.row}>
                  <label className={styles.label}>OGP Image (上書き)</label>
-                 <input key={editingLp.customOgpImage || 'ogp'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customOgpImage')} />
+                 {/* ★追加: ファイル選択とライブラリボタンの横並び */}
+                 <div style={{display:'flex', gap:8}}>
+                   <input key={editingLp.customOgpImage || 'ogp'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customOgpImage')} style={{flex:1}} />
+                   <button onClick={() => openLibrary(url => setEditingLp(prev => prev ? {...prev, customOgpImage: url} : null))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                 </div>
                  {editingLp.customOgpImage && <img src={editingLp.customOgpImage} alt="ogp" style={{width:100, marginTop:4}} />}
               </div>
             </div>
@@ -600,6 +720,8 @@ export default function CmsPage() {
                         画像入れ替え
                         <input type="file" accept="image/*" style={{display:'none'}} onChange={(e) => handleImageReplace(e, idx)} />
                       </label>
+                      {/* ★追加: 画像入れ替え用ライブラリボタン */}
+                      <button onClick={() => openLibrary(url => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], src: url}; setEditingLp({...editingLp, images: newImgs}); })} className={`${styles.btnSecondary} ${styles.btnSmall}`}>ライブラリ</button>
                       <button onClick={() => deleteImage(idx)} className={`${styles.btnDanger} ${styles.btnSmall}`}>削除</button>
                     </div>
                  </div>
@@ -656,10 +778,17 @@ export default function CmsPage() {
                </div>
              ))}
 
-             <div className={styles.uploadArea} style={{ position: 'relative' }}>
-                <input key={editingLp.images.length} type="file" accept="image/*" onChange={handleImageUpload} 
-                   style={{opacity:0, position:'absolute', inset:0, width:'100%', height:'100%', cursor:'pointer'}} />
-                <span className={styles.uploadText}>+ 画像を追加 (ドラッグ&ドロップ可)</span>
+             <div className={styles.uploadArea} style={{ position: 'relative', display:'flex', gap:10, alignItems:'center', justifyContent:'center', minHeight:100 }}>
+                {/* ★追加: ドラッグ&ドロップエリアとライブラリボタンの共存 */}
+                <div style={{position:'absolute', inset:0, zIndex:0}}>
+                    <input key={editingLp.images.length} type="file" accept="image/*" onChange={handleImageUpload} style={{opacity:0, width:'100%', height:'100%', cursor:'pointer'}} />
+                </div>
+                <span className={styles.uploadText} style={{pointerEvents:'none'}}>+ 新規アップロード</span>
+                <div style={{zIndex:1, pointerEvents:'auto'}}>
+                   <button onClick={(e) => { e.stopPropagation(); openLibrary(url => setEditingLp(prev => prev ? {...prev, images: [...prev.images, {src: url, alt: 'LP Image'}]} : null)); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'white'}}>
+                      ライブラリから追加
+                   </button>
+                </div>
              </div>
           </div>
         </div>
@@ -670,6 +799,8 @@ export default function CmsPage() {
   // --- ダッシュボード ---
   return (
     <div className={styles.container}>
+      {loadingOverlay}
+      {libraryModal}
       <div className={styles.header}>
         <h1 className={styles.pageTitle}>画像LP爆速アップローダーPRO</h1>
       </div>
@@ -702,13 +833,21 @@ export default function CmsPage() {
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>ファビコン画像</label>
-                <input key={globalSettings.defaultFavicon || 'fav-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultFavicon')} />
+                {/* ★追加: ファイル選択とライブラリボタンの横並び */}
+                <div style={{display:'flex', gap:8}}>
+                  <input key={globalSettings.defaultFavicon || 'fav-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultFavicon')} style={{flex:1}} />
+                  <button onClick={() => openLibrary(url => setGlobalSettings(prev => ({...prev, defaultFavicon: url})))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                </div>
                 <p className={styles.textSmall}>推奨: .png, .ico (正方形)</p>
                 {globalSettings.defaultFavicon && <img src={globalSettings.defaultFavicon} alt="favicon" style={{width:32, height:32, marginTop:8}} />}
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>OGP画像</label>
-                <input key={globalSettings.defaultOgpImage || 'ogp-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultOgpImage')} />
+                {/* ★追加: ファイル選択とライブラリボタンの横並び */}
+                <div style={{display:'flex', gap:8}}>
+                  <input key={globalSettings.defaultOgpImage || 'ogp-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultOgpImage')} style={{flex:1}} />
+                  <button onClick={() => openLibrary(url => setGlobalSettings(prev => ({...prev, defaultOgpImage: url})))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                </div>
                 {globalSettings.defaultOgpImage && <img src={globalSettings.defaultOgpImage} alt="ogp" style={{width:'100%', marginTop:8, borderRadius:4, border:'1px solid #eee'}} />}
               </div>
 
@@ -746,6 +885,7 @@ export default function CmsPage() {
 
                  <div className={styles.flexGap} style={{marginTop:'16px'}}>
                    <button onClick={() => handleEdit(lp)} className={`${styles.btn} ${styles.btnPrimary}`} style={{flex:1}}>編集</button>
+                   <button onClick={() => handleDuplicate(lp.id)} className={`${styles.btn} ${styles.btnSecondary}`} style={{flex:1}}>複製</button>
                    <a href={`/${lp.slug}`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`} style={{flex:1, textAlign:'center'}}>プレビュー</a>
                  </div>
                </div>

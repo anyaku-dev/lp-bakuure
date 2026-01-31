@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { Redis } from '@upstash/redis';
-import { put } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 // --- DB設定 (Upstash Redis) ---
 const redis = new Redis({
@@ -43,16 +43,14 @@ export type HeaderConfig = {
   menuItems: MenuItem[];
 };
 
-// 固定フッターCTA設定 (拡張)
 export type FooterCtaConfig = {
   enabled: boolean;
   imageSrc: string;
   href: string;
   widthPercent: number;
   bottomMargin: number;
-  // 新規追加: スクロール制御
-  showAfterPx: number;       // 何pxスクロールしたら出現するか
-  hideBeforeBottomPx: number; // 最下部から何px手前で消えるか
+  showAfterPx: number;       
+  hideBeforeBottomPx: number; 
 };
 
 export type TrackingConfig = {
@@ -126,15 +124,14 @@ export async function getLps() {
       menuItems: []
     };
     
-    // フッターCTA設定のデフォルト
     const footerDefaults: FooterCtaConfig = {
       enabled: false,
       imageSrc: '',
       href: '',
       widthPercent: 90,
       bottomMargin: 20,
-      showAfterPx: 0,        // デフォルト: 最初から表示
-      hideBeforeBottomPx: 0  // デフォルト: 最後まで表示
+      showAfterPx: 0,
+      hideBeforeBottomPx: 0
     };
 
     if (!lp.header) {
@@ -218,12 +215,53 @@ export async function deleteLp(id: string) {
   return { success: true };
 }
 
+// ★追加: 複製機能
+export async function duplicateLp(sourceId: string) {
+  const lps = await getLps();
+  const sourceLp = lps.find(item => item.id === sourceId);
+  if (!sourceLp) throw new Error('コピー元のLPが見つかりません');
+
+  // データのディープコピー（参照を切るため）
+  const newLp = JSON.parse(JSON.stringify(sourceLp)) as LpData;
+
+  // タイトル決定ロジック
+  const baseTitle = `${sourceLp.title}のコピー`;
+  let newTitle = baseTitle;
+  let count = 1;
+
+  // 同名のタイトルが存在するかチェックし、あれば番号を振る
+  while (lps.some(item => item.title === newTitle)) {
+    newTitle = `${baseTitle}${count}`;
+    count++;
+  }
+
+  const now = new Date().toISOString();
+
+  // 新しいプロパティの設定
+  newLp.id = crypto.randomUUID();
+  newLp.title = newTitle;
+  // スラッグは一意である必要があるため、タイムスタンプを付与
+  newLp.slug = `${sourceLp.slug}-copy-${Date.now().toString(36)}`;
+  newLp.status = 'draft'; // 下書きにする
+  newLp.createdAt = now;
+  newLp.updatedAt = now;
+  // パスワードも再生成
+  newLp.password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
+
+  // リストに追加して保存
+  lps.push(newLp);
+  await redis.set(KEY_LPS, lps);
+  revalidatePath('/cms');
+  return { success: true };
+}
+
 export async function uploadImage(formData: FormData) {
   const file = formData.get('file') as File;
   if (!file) throw new Error('No file uploaded');
 
   const blob = await put(file.name, file, {
     access: 'public',
+    addRandomSuffix: true,
   });
 
   return blob.url;
@@ -231,4 +269,10 @@ export async function uploadImage(formData: FormData) {
 
 export async function generateRandomPassword() {
   return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
+}
+
+//アップロード済み画像リストの取得
+export async function getBlobList() {
+  const { blobs } = await list({ limit: 100 }); // 最新100件を取得
+  return blobs.map(b => b.url);
 }
