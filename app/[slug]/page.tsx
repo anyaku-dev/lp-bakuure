@@ -3,41 +3,38 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
-import { CountdownHeader, MenuHeader, FadeInImage } from './_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta } from './_components/LpClient';
 import { Metadata } from 'next';
 
-// Next.js 15+ 対応の型定義
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
-// データ取得ヘルパー
 async function getData(slug: string) {
   const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
   const lp = lps.find(item => item.slug === slug);
   return { lp, globalSettings };
 }
 
-// ★ここがファビコン反映の肝です
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const { lp, globalSettings } = await getData(slug);
   
   if (!lp) return { title: 'Not Found' };
 
-  // 設定があればそれを使用、なければデフォルト、それもなければ /favicon.ico
   const title = lp.pageTitle || lp.title;
   const description = lp.customMetaDescription || globalSettings.defaultMetaDescription || '';
-  const favicon = lp.customFavicon || globalSettings.defaultFavicon || '/favicon.ico';
+  const baseFavicon = lp.customFavicon || globalSettings.defaultFavicon || '/favicon.ico';
   const ogpImage = lp.customOgpImage || globalSettings.defaultOgpImage;
+  const faviconUrl = baseFavicon.startsWith('/') ? `${baseFavicon}?v=${Date.now()}` : baseFavicon;
 
   return {
     title: title,
     description: description,
     icons: {
-      icon: favicon, // ここで指定
-      shortcut: favicon,
-      apple: favicon, // スマホ用アイコンも一応同じものを指定
+      icon: faviconUrl,
+      shortcut: faviconUrl,
+      apple: faviconUrl,
     },
     openGraph: {
       title: title,
@@ -74,12 +71,15 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
   return (
     <>
-      {/* Head内カスタムコード */}
+      {/* カスタムCSSの適用 */}
+      {lp.customCss && (
+        <style dangerouslySetInnerHTML={{ __html: lp.customCss }} />
+      )}
+
       {headCode && (
          <div dangerouslySetInnerHTML={{ __html: headCode }} style={{display:'none'}} />
       )}
 
-      {/* GTM */}
       {tracking.gtm && (
         <Script id="gtm-script" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -100,7 +100,6 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         </noscript>
       )}
 
-      {/* Meta Pixel */}
       {tracking.pixel && (
         <Script id="fb-pixel" strategy="afterInteractive">
           {`
@@ -134,7 +133,7 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         {lp.header?.type === 'menu' && (
           <>
             <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
-              <div className="w-full md:max-w-[425px] pointer-events-auto shadow-sm">
+              <div className="w-full md:max-w-[425px] pointer-events-auto shadow-sm relative">
                 <MenuHeader logoSrc={lp.header.logoSrc} items={lp.header.menuItems} />
               </div>
             </div>
@@ -150,6 +149,11 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
             </section>
           ))}
         </div>
+
+        {/* 固定フッターCTA */}
+        {lp.footerCta?.enabled && (
+           <FixedFooterCta config={lp.footerCta} />
+        )}
       </main>
     </>
   );

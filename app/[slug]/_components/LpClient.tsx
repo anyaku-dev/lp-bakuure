@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
-import { MenuItem } from '../../cms/actions';
+import { MenuItem, FooterCtaConfig } from '../../cms/actions';
 
 const jost = Jost({ subsets: ['latin'], weight: ['500'], display: 'swap' });
 const zenKaku = Zen_Kaku_Gothic_New({ subsets: ['latin'], weight: ['700'], display: 'swap' });
@@ -77,34 +77,45 @@ export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuIt
         <div className="h-[40px]">
           {logoSrc && <img src={logoSrc} alt="Logo" className="h-full w-auto object-contain" />}
         </div>
-        <button onClick={() => setIsOpen(true)} className="p-2">
-          <div className="w-6 h-0.5 bg-gray-800 mb-1.5"></div>
-          <div className="w-6 h-0.5 bg-gray-800 mb-1.5"></div>
-          <div className="w-6 h-0.5 bg-gray-800"></div>
+        <button onClick={() => setIsOpen(true)} className="p-3 -mr-2">
+          <div className="w-6 h-0.5 bg-gray-900 mb-1.5 rounded-full"></div>
+          <div className="w-6 h-0.5 bg-gray-900 mb-1.5 rounded-full"></div>
+          <div className="w-6 h-0.5 bg-gray-900 rounded-full"></div>
         </button>
       </header>
 
-      {/* Drawer */}
+      {/* Drawer Overlay */}
       <div 
-        className={`fixed inset-0 z-[100] transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        style={{ background: 'rgba(0,0,0,0.5)' }}
-        onClick={() => setIsOpen(false)}
+        className={`fixed inset-y-0 left-1/2 transform -translate-x-1/2 w-full max-w-[425px] z-[100] transition-visibility duration-300 ${isOpen ? 'visible' : 'invisible'}`}
+        style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
       >
         <div 
-          className={`absolute top-0 right-0 h-full w-[280px] bg-white shadow-lg transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setIsOpen(false)}
+        />
+
+        <div 
+          className={`absolute top-0 right-0 h-full w-[280px] bg-white shadow-xl transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex justify-end p-4 border-b">
-            <button onClick={() => setIsOpen(false)} className="text-2xl leading-none p-2">&times;</button>
+          <div className="flex justify-end p-4 border-b border-gray-100">
+            <button 
+              onClick={() => setIsOpen(false)} 
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-50 text-gray-800 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+              aria-label="メニューを閉じる"
+            >
+              <span className="text-3xl leading-none font-light">&times;</span>
+            </button>
           </div>
+          
           <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-4">
+            <ul className="space-y-1">
               {items.map((item, idx) => (
                 <li key={idx}>
                   <Link 
                     href={item.href} 
                     onClick={() => setIsOpen(false)}
-                    className="block text-lg font-bold text-gray-800 hover:text-gray-600 border-b pb-2"
+                    className="block px-4 py-4 text-base font-bold text-gray-800 border-b border-gray-50 hover:bg-gray-50 transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -115,6 +126,64 @@ export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuIt
         </div>
       </div>
     </>
+  );
+}
+
+// --- 固定フッターCTA (スクロール制御付き) ---
+export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+
+      // 1. 出現条件: showAfterPx以上スクロールしているか
+      const isAfterStart = scrollY >= (config.showAfterPx || 0);
+
+      // 2. 非表示条件: hideBeforeBottomPxより手前にいるか (最下部付近で消す)
+      // 残りのスクロール量
+      const remaining = docHeight - (scrollY + windowHeight);
+      const isBeforeEnd = config.hideBeforeBottomPx > 0 ? remaining > config.hideBeforeBottomPx : true;
+
+      setIsVisible(isAfterStart && isBeforeEnd);
+    };
+
+    // 初回チェック
+    handleScroll();
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [config.showAfterPx, config.hideBeforeBottomPx]);
+
+  if (!config.enabled || !config.imageSrc) return null;
+
+  return (
+    <div 
+      className={`fixed bottom-0 left-0 w-full z-[80] pointer-events-none flex justify-center transition-all duration-500 ease-out ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}
+    >
+      <div className="w-full max-w-[425px] pointer-events-auto relative">
+        <div 
+           className="absolute bottom-0 left-0 w-full flex justify-center" 
+           style={{ paddingBottom: `${config.bottomMargin}px` }}
+        >
+          <a 
+            href={config.href} 
+            className="block transition-transform active:scale-[0.98] hover:opacity-95"
+            style={{ width: `${config.widthPercent}%` }}
+          >
+            <img 
+              src={config.imageSrc} 
+              alt="CTA" 
+              className="w-full h-auto block drop-shadow-xl" 
+            />
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -140,7 +209,6 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
   return (
     <div 
       ref={ref} 
-      // セクションIDを適用 (カスタムIDがある場合)
       id={data.customId}
       className={`relative w-full ${ANIMATION_TRANSITION} ${isVisible ? ANIMATION_CLASS_VISIBLE : ANIMATION_CLASS_HIDDEN}`}
     >

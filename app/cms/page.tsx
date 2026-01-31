@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   getLps, saveLp, uploadImage, generateRandomPassword, deleteLp,
   getGlobalSettings, saveGlobalSettings,
-  LpData, GlobalSettings, MenuItem, HeaderConfig
+  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig
 } from './actions';
 import styles from './cms.module.css';
 
@@ -24,12 +24,24 @@ const STATUS_LABELS = {
   private: '限定公開'
 };
 
-// --- 初期値と正規化 ---
+// --- 初期値と正規化関数 ---
+
 const EMPTY_HEADER: HeaderConfig = {
   type: 'none',
   timerPeriodDays: 3,
   logoSrc: '',
   menuItems: []
+};
+
+const EMPTY_FOOTER_CTA: FooterCtaConfig = {
+  enabled: false,
+  imageSrc: '',
+  href: '',
+  widthPercent: 90,
+  bottomMargin: 20,
+  // 追加: スクロール制御の初期値
+  showAfterPx: 0,
+  hideBeforeBottomPx: 0
 };
 
 const EMPTY_LP: LpData = {
@@ -40,44 +52,71 @@ const EMPTY_LP: LpData = {
   status: 'draft',
   images: [],
   header: { ...EMPTY_HEADER },
+  footerCta: { ...EMPTY_FOOTER_CTA },
   tracking: { gtm: '', pixel: '', meta: '', useDefault: true },
+  customCss: '',
   createdAt: '',
   updatedAt: '',
 };
 
-// ★ここが重要: データを完全な形に整形する関数
+const EMPTY_GLOBAL: GlobalSettings = {
+  defaultGtm: '',
+  defaultPixel: '',
+  defaultHeadCode: '',
+  defaultMetaDescription: '',
+  defaultFavicon: '',
+  defaultOgpImage: ''
+};
+
+// LPデータの正規化
 const normalizeLp = (lp: Partial<LpData>): LpData => {
   return {
-    ...EMPTY_LP, // 基本は初期値
-    ...lp,       // 既存データを上書き
+    ...EMPTY_LP,
+    ...lp,
     header: {
       ...EMPTY_HEADER,
-      ...(lp.header || {}), // headerの中身もマージ
-      // ネストされた配列や数値も確実に
+      ...(lp.header || {}),
       menuItems: lp.header?.menuItems || [], 
       timerPeriodDays: lp.header?.timerPeriodDays ?? 3,
+    },
+    footerCta: {
+      ...EMPTY_FOOTER_CTA,
+      ...(lp.footerCta || {}),
+      widthPercent: lp.footerCta?.widthPercent ?? 90,
+      bottomMargin: lp.footerCta?.bottomMargin ?? 20,
+      // 追加: 正規化処理
+      showAfterPx: lp.footerCta?.showAfterPx ?? 0,
+      hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0,
     },
     tracking: {
       gtm: '', pixel: '', meta: '', useDefault: true,
       ...(lp.tracking || {})
     },
-    // 配列やオブジェクトはundefinedになりがちなので個別にケア
     images: lp.images || [],
-    pageTitle: lp.pageTitle || '',
-    customHeadCode: lp.customHeadCode || '',
-    customMetaDescription: lp.customMetaDescription || '',
-    customFavicon: lp.customFavicon || '',
-    customOgpImage: lp.customOgpImage || '',
+    pageTitle: lp.pageTitle ?? '',
+    customHeadCode: lp.customHeadCode ?? '',
+    customMetaDescription: lp.customMetaDescription ?? '',
+    customFavicon: lp.customFavicon ?? '',
+    customOgpImage: lp.customOgpImage ?? '',
+    customCss: lp.customCss ?? '',
+  };
+};
+
+const normalizeGlobal = (g: Partial<GlobalSettings>): GlobalSettings => {
+  return {
+    defaultGtm: g.defaultGtm ?? '',
+    defaultPixel: g.defaultPixel ?? '',
+    defaultHeadCode: g.defaultHeadCode ?? '',
+    defaultMetaDescription: g.defaultMetaDescription ?? '',
+    defaultFavicon: g.defaultFavicon ?? '',
+    defaultOgpImage: g.defaultOgpImage ?? '',
   };
 };
 
 export default function CmsPage() {
   const [lps, setLps] = useState<LpData[]>([]);
   const [editingLp, setEditingLp] = useState<LpData | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
-    defaultGtm: '', defaultPixel: '', defaultHeadCode: '', 
-    defaultMetaDescription: '', defaultFavicon: '', defaultOgpImage: ''
-  });
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -86,17 +125,15 @@ export default function CmsPage() {
 
   const loadData = async () => {
     const [lpsData, settingsData] = await Promise.all([getLps(), getGlobalSettings()]);
-    // 読み込み時も念のため正規化を通す
     setLps(lpsData.map(normalizeLp));
-    setGlobalSettings(settingsData);
+    setGlobalSettings(normalizeGlobal(settingsData));
   };
 
   const handleCreate = async () => {
     const newPass = await generateRandomPassword();
-    const newLp: LpData = normalizeLp({
-      ...EMPTY_LP,
+    const newLp = normalizeLp({
       id: crypto.randomUUID(),
-      slug: `new-${Date.now()}`, // スラッグ重複回避のため一時的にID付与
+      slug: `new-${Date.now()}`,
       password: newPass,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -105,7 +142,6 @@ export default function CmsPage() {
   };
 
   const handleEdit = (lp: LpData) => {
-    // 編集開始時にデータを正規化（undefined撲滅）
     setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
   };
 
@@ -153,7 +189,6 @@ export default function CmsPage() {
   const handleDeleteLp = async () => {
     if (!editingLp) return;
     if (!confirm('本当にこのLPを削除しますか？この操作は取り消せません。')) return;
-    
     setLoading(true);
     try {
       await deleteLp(editingLp.id);
@@ -173,7 +208,6 @@ export default function CmsPage() {
     return await uploadImage(formData);
   };
 
-  // --- 画像アップロード系 ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
@@ -206,7 +240,7 @@ export default function CmsPage() {
     setLoading(true);
     try {
       const src = await handleUpload(e.target.files[0]);
-      setGlobalSettings({ ...globalSettings, [key]: src });
+      setGlobalSettings(prev => ({ ...prev, [key]: src }));
     } finally {
       setLoading(false);
     }
@@ -237,7 +271,21 @@ export default function CmsPage() {
     }
   };
 
-  // --- メニュー操作 ---
+  // --- フッターCTA画像アップロード ---
+  const handleFooterCtaImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0] || !editingLp) return;
+    setLoading(true);
+    try {
+      const src = await handleUpload(e.target.files[0]);
+      setEditingLp({
+        ...editingLp,
+        footerCta: { ...editingLp.footerCta, imageSrc: src }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const addMenuItem = () => {
     if (!editingLp) return;
     const newItems = [...(editingLp.header.menuItems || []), { label: '', href: '' }];
@@ -266,7 +314,6 @@ export default function CmsPage() {
     setEditingLp({ ...editingLp, header: { ...editingLp.header, menuItems: newItems } });
   };
 
-  // --- リンク・画像操作 ---
   const updateImageId = (imgIndex: number, id: string) => {
     if (!editingLp) return;
     const newImages = [...editingLp.images];
@@ -314,12 +361,9 @@ export default function CmsPage() {
     setEditingLp({ ...editingLp, images: newImages });
   };
 
-  // ==========================================
-  // VIEW: エディタ画面
-  // ==========================================
   if (editingLp) {
-    // 念のためのローカル変数 (nullチェック不要にするため)
     const h = editingLp.header;
+    const f = editingLp.footerCta;
 
     return (
       <div className={styles.container}>
@@ -334,10 +378,10 @@ export default function CmsPage() {
         </div>
 
         <div className={styles.splitLayout}>
-          {/* --- 左ペイン --- */}
           <div className={styles.leftPane}>
             <div className={styles.panel}>
               <h3 className={styles.sectionTitle}>基本設定</h3>
+              
               <div className={styles.row}>
                 <label className={styles.label}>管理用タイトル</label>
                 <input type="text" className={styles.input} value={editingLp.title ?? ''} 
@@ -363,7 +407,6 @@ export default function CmsPage() {
                 </select>
               </div>
               
-              {/* ヘッダー設定 */}
               <div className={styles.row} style={{borderTop:'1px dashed #e5e5e5', paddingTop:'20px'}}>
                 <label className={styles.label}>ヘッダー表示設定</label>
                 <select className={styles.select} value={h.type ?? 'none'}
@@ -423,6 +466,57 @@ export default function CmsPage() {
                   </button>
                 </div>
               )}
+
+              {/* 固定フッターCTA設定 */}
+              <div className={styles.row} style={{borderTop:'1px dashed #e5e5e5', paddingTop:'20px'}}>
+                <label className={styles.checkboxGroup} style={{marginBottom:'16px', fontSize:'15px'}}>
+                   <input type="checkbox" checked={f.enabled} 
+                     onChange={e => setEditingLp({...editingLp, footerCta: {...f, enabled: e.target.checked}})} />
+                   固定フッターCTAを表示する
+                </label>
+
+                {f.enabled && (
+                  <div style={{background:'#f9f9f9', padding:'16px', borderRadius:'8px', marginBottom:'24px'}}>
+                     <div className={styles.row}>
+                        <label className={styles.label}>ボタン画像</label>
+                        <input key={f.imageSrc || 'cta'} type="file" className={styles.input} accept="image/*" onChange={handleFooterCtaImageUpload} />
+                        {f.imageSrc && <img src={f.imageSrc} alt="cta" style={{width:'100%', maxWidth:'200px', marginTop:8}} />}
+                     </div>
+                     <div className={styles.row}>
+                        <label className={styles.label}>飛び先URL</label>
+                        <input type="text" className={styles.input} placeholder="https://..."
+                          value={f.href ?? ''} onChange={e => setEditingLp({...editingLp, footerCta: {...f, href: e.target.value}})} />
+                     </div>
+                     <div className={styles.grid2} style={{marginBottom:'16px'}}>
+                        <div>
+                          <label className={styles.label}>横幅 (%)</label>
+                          <input type="number" className={styles.input} 
+                            value={f.widthPercent ?? 90} onChange={e => setEditingLp({...editingLp, footerCta: {...f, widthPercent: Number(e.target.value)}})} />
+                        </div>
+                        <div>
+                          <label className={styles.label}>下マージン (px)</label>
+                          <input type="number" className={styles.input} 
+                            value={f.bottomMargin ?? 20} onChange={e => setEditingLp({...editingLp, footerCta: {...f, bottomMargin: Number(e.target.value)}})} />
+                        </div>
+                     </div>
+                     {/* 追加: スクロール出現/消失設定 */}
+                     <div className={styles.grid2}>
+                        <div>
+                          <label className={styles.label}>出現位置 (px)</label>
+                          <p className={styles.subLabel}>スクロール量。0で最初から表示</p>
+                          <input type="number" className={styles.input} 
+                            value={f.showAfterPx ?? 0} onChange={e => setEditingLp({...editingLp, footerCta: {...f, showAfterPx: Number(e.target.value)}})} />
+                        </div>
+                        <div>
+                          <label className={styles.label}>非表示位置 (px)</label>
+                          <p className={styles.subLabel}>最下部からの距離。0で最後まで表示</p>
+                          <input type="number" className={styles.input} 
+                            value={f.hideBeforeBottomPx ?? 0} onChange={e => setEditingLp({...editingLp, footerCta: {...f, hideBeforeBottomPx: Number(e.target.value)}})} />
+                        </div>
+                     </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className={styles.panel}>
@@ -458,6 +552,16 @@ export default function CmsPage() {
                  <textarea className={styles.textarea} style={{minHeight:'60px'}} value={editingLp.customMetaDescription ?? ''}
                    onChange={e => setEditingLp({...editingLp, customMetaDescription: e.target.value})} />
               </div>
+              
+              <div className={styles.row}>
+                 <label className={styles.label}>カスタムCSS</label>
+                 <p className={styles.subLabel} style={{marginBottom:'8px'}}>このページのみに適用されるCSS（&lt;style&gt;タグは不要）</p>
+                 <textarea className={styles.textarea} style={{minHeight:'120px', fontFamily:'monospace', fontSize:'13px', background:'#2b2b2b', color:'#f8f8f2'}} 
+                   value={editingLp.customCss ?? ''}
+                   placeholder=".my-class { color: red; }"
+                   onChange={e => setEditingLp({...editingLp, customCss: e.target.value})} />
+              </div>
+
               <div className={styles.row}>
                  <label className={styles.label}>Favicon (上書き)</label>
                  <input key={editingLp.customFavicon || 'fav'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customFavicon')} />
@@ -563,9 +667,7 @@ export default function CmsPage() {
     );
   }
 
-  // ==========================================
-  // VIEW: ダッシュボード
-  // ==========================================
+  // --- ダッシュボード ---
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -573,7 +675,6 @@ export default function CmsPage() {
       </div>
 
       <div className={styles.splitLayout}>
-        {/* --- 左ペイン --- */}
         <div className={styles.leftPane}>
            <div className={styles.panel}>
               <h3 className={styles.sectionTitle}>デフォルト設定</h3>
@@ -617,7 +718,6 @@ export default function CmsPage() {
            </div>
         </div>
 
-        {/* --- 右ペイン --- */}
         <div className={styles.rightPane}>
            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
               <h3 className={styles.sectionTitle} style={{margin:0, border:0}}>プロジェクト一覧</h3>
