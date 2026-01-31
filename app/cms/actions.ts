@@ -22,7 +22,20 @@ export type LinkArea = {
 export type ImageData = {
   src: string;
   alt: string;
+  customId?: string;
   links?: LinkArea[];
+};
+
+export type MenuItem = {
+  label: string;
+  href: string;
+};
+
+export type HeaderConfig = {
+  type: 'timer' | 'menu' | 'none';
+  timerPeriodDays: number;
+  logoSrc?: string;
+  menuItems: MenuItem[];
 };
 
 export type TrackingConfig = {
@@ -44,19 +57,17 @@ export type GlobalSettings = {
 export type LpData = {
   id: string;
   slug: string;
-  title: string;      // 管理用タイトル
-  pageTitle?: string; // 公開ページのタイトル (新規追加)
+  title: string;      
+  pageTitle?: string; 
   status: 'draft' | 'public' | 'private';
   password?: string;
   images: ImageData[];
-  timer: { enabled: boolean; periodDays: number };
+  header: HeaderConfig;
   tracking: TrackingConfig;
-  
   customHeadCode?: string;
   customMetaDescription?: string;
   customFavicon?: string;
   customOgpImage?: string;
-  
   createdAt: string;
   updatedAt: string;
 };
@@ -67,7 +78,13 @@ const readJSON = <T>(filePath: string, defaultVal: T): T => {
   if (!fs.existsSync(filePath)) return defaultVal;
   try {
     const data = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(data) as T;
+    const parsed = JSON.parse(data);
+    if (Array.isArray(defaultVal)) {
+      return (Array.isArray(parsed) ? parsed : defaultVal) as T;
+    } else if (typeof defaultVal === 'object' && defaultVal !== null) {
+      return { ...defaultVal, ...parsed };
+    }
+    return parsed as T;
   } catch (e) {
     return defaultVal;
   }
@@ -101,11 +118,40 @@ export async function saveGlobalSettings(settings: GlobalSettings) {
 // --- LP管理 ---
 
 export async function getLps() {
-  return readJSON<LpData[]>(DB_PATH, []);
+  const lps = readJSON<any[]>(DB_PATH, []);
+  
+  return lps.map(lp => {
+    // ヘッダー設定のマイグレーション & 完全補完
+    const headerDefaults = {
+      type: 'none',
+      timerPeriodDays: 3,
+      logoSrc: '',
+      menuItems: []
+    };
+
+    if (!lp.header) {
+      // 古いタイマー設定があれば引き継ぎ
+      lp.header = {
+        ...headerDefaults,
+        type: lp.timer?.enabled ? 'timer' : 'none',
+        timerPeriodDays: lp.timer?.periodDays ?? 3,
+      };
+    } else {
+      // headerオブジェクトはあるが中身が欠けている場合の補完
+      lp.header = {
+        ...headerDefaults,
+        ...lp.header
+      };
+    }
+
+    if (!lp.pageTitle) lp.pageTitle = '';
+    
+    return lp as LpData;
+  });
 }
 
 export async function saveLp(lp: LpData) {
-  const lps = readJSON<LpData[]>(DB_PATH, []);
+  const lps = await getLps();
   const index = lps.findIndex((item) => item.id === lp.id);
   
   const slugExists = lps.some(item => item.slug === lp.slug && item.id !== lp.id);
@@ -115,15 +161,26 @@ export async function saveLp(lp: LpData) {
 
   const now = new Date().toISOString();
 
+  // 保存時にデータを整形
+  const safeLp = {
+    ...lp,
+    header: {
+      type: lp.header?.type || 'none',
+      timerPeriodDays: lp.header?.timerPeriodDays ?? 3,
+      logoSrc: lp.header?.logoSrc || '',
+      menuItems: lp.header?.menuItems || []
+    }
+  };
+
   if (index >= 0) {
     lps[index] = { 
-      ...lp, 
+      ...safeLp, 
       createdAt: lps[index].createdAt || now,
       updatedAt: now 
     };
   } else {
     lps.push({ 
-      ...lp, 
+      ...safeLp, 
       createdAt: now, 
       updatedAt: now 
     });
@@ -135,16 +192,14 @@ export async function saveLp(lp: LpData) {
   return { success: true };
 }
 
-// LP削除 (新規追加)
 export async function deleteLp(id: string) {
-  const lps = readJSON<LpData[]>(DB_PATH, []);
+  const lps = await getLps();
   const newLps = lps.filter(item => item.id !== id);
   writeJSON(DB_PATH, newLps);
   revalidatePath('/cms');
   return { success: true };
 }
 
-// 画像アップロード
 export async function uploadImage(formData: FormData) {
   const file = formData.get('file') as File;
   if (!file) throw new Error('No file uploaded');

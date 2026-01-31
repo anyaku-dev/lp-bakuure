@@ -3,29 +3,29 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
-import { CountdownHeader, FadeInImage } from './_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage } from './_components/LpClient';
 import { Metadata } from 'next';
 
-// 型定義を Next.js 15/16 仕様に合わせて Promise に変更
+// Next.js 15+ 対応の型定義
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
-// サーバーサイドでのデータ取得ヘルパー
+// データ取得ヘルパー
 async function getData(slug: string) {
   const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
   const lp = lps.find(item => item.slug === slug);
   return { lp, globalSettings };
 }
 
-// メタデータ生成
+// ★ここがファビコン反映の肝です
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // ★ ここで await する
   const { slug } = await params;
-  
   const { lp, globalSettings } = await getData(slug);
+  
   if (!lp) return { title: 'Not Found' };
 
+  // 設定があればそれを使用、なければデフォルト、それもなければ /favicon.ico
   const title = lp.pageTitle || lp.title;
   const description = lp.customMetaDescription || globalSettings.defaultMetaDescription || '';
   const favicon = lp.customFavicon || globalSettings.defaultFavicon || '/favicon.ico';
@@ -35,7 +35,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: title,
     description: description,
     icons: {
-      icon: favicon,
+      icon: favicon, // ここで指定
+      shortcut: favicon,
+      apple: favicon, // スマホ用アイコンも一応同じものを指定
     },
     openGraph: {
       title: title,
@@ -45,16 +47,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// メインページコンポーネント
 export default async function DynamicLpPage({ params }: Props) {
-  // ★ ここでも await する
   const { slug } = await params;
-
   const { lp, globalSettings } = await getData(slug);
 
   if (!lp) return notFound();
 
-  // CMSコンテンツ
   const content = <LpContent lp={lp} globalSettings={globalSettings} />;
 
   if (lp.status === 'private' && lp.password) {
@@ -68,7 +66,7 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
   const tracking: TrackingConfig = lp.tracking.useDefault ? {
     gtm: globalSettings.defaultGtm,
     pixel: globalSettings.defaultPixel,
-    meta: '', // 未使用
+    meta: '', 
     useDefault: true
   } : lp.tracking;
 
@@ -121,18 +119,30 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
       )}
 
       <main className="min-h-screen bg-white">
-        {lp.timer.enabled && (
+        {/* ヘッダー分岐 */}
+        {lp.header?.type === 'timer' && (
           <>
             <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
               <div className="w-full md:max-w-[425px] pointer-events-auto shadow-lg">
-                <CountdownHeader periodDays={lp.timer.periodDays} />
+                <CountdownHeader periodDays={lp.header.timerPeriodDays} />
               </div>
             </div>
-            {/* ヘッダー高さ確保用スペーサー */}
             <div className="w-full md:max-w-[425px] mx-auto h-[53px]" />
           </>
         )}
 
+        {lp.header?.type === 'menu' && (
+          <>
+            <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
+              <div className="w-full md:max-w-[425px] pointer-events-auto shadow-sm">
+                <MenuHeader logoSrc={lp.header.logoSrc} items={lp.header.menuItems} />
+              </div>
+            </div>
+            <div className="w-full md:max-w-[425px] mx-auto h-[60px]" />
+          </>
+        )}
+
+        {/* コンテンツ */}
         <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
           {lp.images.map((img, index) => (
             <section key={index} className="w-full">

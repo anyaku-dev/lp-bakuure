@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   getLps, saveLp, uploadImage, generateRandomPassword, deleteLp,
   getGlobalSettings, saveGlobalSettings,
-  LpData, GlobalSettings
+  LpData, GlobalSettings, MenuItem, HeaderConfig
 } from './actions';
 import styles from './cms.module.css';
 
@@ -24,20 +24,51 @@ const STATUS_LABELS = {
   private: '限定公開'
 };
 
-// --- 初期値 ---
+// --- 初期値と正規化 ---
+const EMPTY_HEADER: HeaderConfig = {
+  type: 'none',
+  timerPeriodDays: 3,
+  logoSrc: '',
+  menuItems: []
+};
+
 const EMPTY_LP: LpData = {
   id: '',
-  slug: 'new-page',
+  slug: '',
   title: '新規LPプロジェクト',
   pageTitle: '',
   status: 'draft',
   images: [],
-  timer: { enabled: true, periodDays: 3 },
-  tracking: { 
-    gtm: '', pixel: '', meta: '', useDefault: true 
-  },
+  header: { ...EMPTY_HEADER },
+  tracking: { gtm: '', pixel: '', meta: '', useDefault: true },
   createdAt: '',
   updatedAt: '',
+};
+
+// ★ここが重要: データを完全な形に整形する関数
+const normalizeLp = (lp: Partial<LpData>): LpData => {
+  return {
+    ...EMPTY_LP, // 基本は初期値
+    ...lp,       // 既存データを上書き
+    header: {
+      ...EMPTY_HEADER,
+      ...(lp.header || {}), // headerの中身もマージ
+      // ネストされた配列や数値も確実に
+      menuItems: lp.header?.menuItems || [], 
+      timerPeriodDays: lp.header?.timerPeriodDays ?? 3,
+    },
+    tracking: {
+      gtm: '', pixel: '', meta: '', useDefault: true,
+      ...(lp.tracking || {})
+    },
+    // 配列やオブジェクトはundefinedになりがちなので個別にケア
+    images: lp.images || [],
+    pageTitle: lp.pageTitle || '',
+    customHeadCode: lp.customHeadCode || '',
+    customMetaDescription: lp.customMetaDescription || '',
+    customFavicon: lp.customFavicon || '',
+    customOgpImage: lp.customOgpImage || '',
+  };
 };
 
 export default function CmsPage() {
@@ -55,26 +86,29 @@ export default function CmsPage() {
 
   const loadData = async () => {
     const [lpsData, settingsData] = await Promise.all([getLps(), getGlobalSettings()]);
-    setLps(lpsData);
+    // 読み込み時も念のため正規化を通す
+    setLps(lpsData.map(normalizeLp));
     setGlobalSettings(settingsData);
   };
 
   const handleCreate = async () => {
     const newPass = await generateRandomPassword();
-    setEditingLp({ 
-      ...EMPTY_LP, 
+    const newLp: LpData = normalizeLp({
+      ...EMPTY_LP,
       id: crypto.randomUUID(),
+      slug: `new-${Date.now()}`, // スラッグ重複回避のため一時的にID付与
       password: newPass,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    setEditingLp(newLp);
   };
 
   const handleEdit = (lp: LpData) => {
-    setEditingLp(JSON.parse(JSON.stringify(lp)));
+    // 編集開始時にデータを正規化（undefined撲滅）
+    setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
   };
 
-  // --- 保存処理 ---
   const handleSaveLp = async () => {
     if (!editingLp) return;
     setLoading(true);
@@ -82,7 +116,6 @@ export default function CmsPage() {
       await saveLp(editingLp);
       await loadData();
       alert('LP設定を保存しました');
-      // エディタを閉じずにそのまま
     } catch (e: any) {
       alert('エラー: ' + e.message);
     } finally {
@@ -97,7 +130,7 @@ export default function CmsPage() {
       await saveLp(editingLp);
       await loadData();
       alert('LPを保存しました');
-      setEditingLp(null); // 画面を閉じる
+      setEditingLp(null);
     } catch (e: any) {
       alert('エラー: ' + e.message);
     } finally {
@@ -117,7 +150,6 @@ export default function CmsPage() {
     }
   };
 
-  // --- LP削除処理 ---
   const handleDeleteLp = async () => {
     if (!editingLp) return;
     if (!confirm('本当にこのLPを削除しますか？この操作は取り消せません。')) return;
@@ -135,13 +167,13 @@ export default function CmsPage() {
     }
   };
 
-  // --- アップロード処理 ---
   const handleUpload = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
     return await uploadImage(formData);
   };
 
+  // --- 画像アップロード系 ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
@@ -191,7 +223,57 @@ export default function CmsPage() {
     }
   };
 
+  const handleHeaderLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0] || !editingLp) return;
+    setLoading(true);
+    try {
+      const src = await handleUpload(e.target.files[0]);
+      setEditingLp({
+        ...editingLp,
+        header: { ...editingLp.header, logoSrc: src }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- メニュー操作 ---
+  const addMenuItem = () => {
+    if (!editingLp) return;
+    const newItems = [...(editingLp.header.menuItems || []), { label: '', href: '' }];
+    setEditingLp({ ...editingLp, header: { ...editingLp.header, menuItems: newItems } });
+  };
+
+  const updateMenuItem = (index: number, key: keyof MenuItem, val: string) => {
+    if (!editingLp) return;
+    const newItems = [...(editingLp.header.menuItems || [])];
+    newItems[index] = { ...newItems[index], [key]: val };
+    setEditingLp({ ...editingLp, header: { ...editingLp.header, menuItems: newItems } });
+  };
+
+  const removeMenuItem = (index: number) => {
+    if (!editingLp) return;
+    const newItems = editingLp.header.menuItems.filter((_, i) => i !== index);
+    setEditingLp({ ...editingLp, header: { ...editingLp.header, menuItems: newItems } });
+  };
+
+  const moveMenuItem = (index: number, direction: -1 | 1) => {
+    if (!editingLp) return;
+    const newItems = [...editingLp.header.menuItems];
+    const target = index + direction;
+    if (target < 0 || target >= newItems.length) return;
+    [newItems[index], newItems[target]] = [newItems[target], newItems[index]];
+    setEditingLp({ ...editingLp, header: { ...editingLp.header, menuItems: newItems } });
+  };
+
   // --- リンク・画像操作 ---
+  const updateImageId = (imgIndex: number, id: string) => {
+    if (!editingLp) return;
+    const newImages = [...editingLp.images];
+    newImages[imgIndex].customId = id;
+    setEditingLp({ ...editingLp, images: newImages });
+  };
+
   const addLink = (imgIndex: number) => {
     if (!editingLp) return;
     const newImages = [...editingLp.images];
@@ -236,6 +318,9 @@ export default function CmsPage() {
   // VIEW: エディタ画面
   // ==========================================
   if (editingLp) {
+    // 念のためのローカル変数 (nullチェック不要にするため)
+    const h = editingLp.header;
+
     return (
       <div className={styles.container}>
         <div className={styles.editorHeader}>
@@ -243,9 +328,7 @@ export default function CmsPage() {
             編集: {editingLp.title}
           </h2>
           <div className={styles.flexGap}>
-             {/* 修正: styles.btn を追加 */}
              <button onClick={() => setEditingLp(null)} className={`${styles.btn} ${styles.btnSecondary}`}>キャンセル</button>
-             {/* 修正: styles.btn を追加 */}
              <button onClick={handleSaveAndClose} disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`}>保存</button>
           </div>
         </div>
@@ -257,48 +340,93 @@ export default function CmsPage() {
               <h3 className={styles.sectionTitle}>基本設定</h3>
               <div className={styles.row}>
                 <label className={styles.label}>管理用タイトル</label>
-                <input type="text" className={styles.input} value={editingLp.title} 
+                <input type="text" className={styles.input} value={editingLp.title ?? ''} 
                   onChange={e => setEditingLp({...editingLp, title: e.target.value})} />
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>公開ページのタイトル</label>
-                <input type="text" className={styles.input} value={editingLp.pageTitle || ''} placeholder="ブラウザタブに表示される名前"
+                <input type="text" className={styles.input} value={editingLp.pageTitle ?? ''} placeholder="ブラウザタブに表示される名前"
                   onChange={e => setEditingLp({...editingLp, pageTitle: e.target.value})} />
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>URLスラッグ</label>
-                <input type="text" className={styles.input} value={editingLp.slug} 
+                <input type="text" className={styles.input} value={editingLp.slug ?? ''} 
                   onChange={e => setEditingLp({...editingLp, slug: e.target.value})} />
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>ステータス</label>
-                <select className={styles.select} value={editingLp.status} 
+                <select className={styles.select} value={editingLp.status ?? 'draft'} 
                   onChange={e => setEditingLp({...editingLp, status: e.target.value as any})}>
                   <option value="draft">{STATUS_LABELS.draft}</option>
                   <option value="private">{STATUS_LABELS.private}</option>
                   <option value="public">{STATUS_LABELS.public}</option>
                 </select>
               </div>
-              <div className={styles.row}>
-                <label className={styles.checkboxGroup}>
-                  <input type="checkbox" checked={editingLp.timer.enabled} 
-                    onChange={e => setEditingLp({...editingLp, timer: {...editingLp.timer, enabled: e.target.checked}})} />
-                  タイマーを表示
-                </label>
-                {editingLp.timer.enabled && (
-                  <div className={styles.mt2}>
-                    <input type="number" className={styles.input} style={{width:'80px'}} 
-                      value={editingLp.timer.periodDays} 
-                      onChange={e => setEditingLp({...editingLp, timer: {...editingLp.timer, periodDays: Number(e.target.value)}})} />
-                    <span className={styles.subLabel}>日周期</span>
-                  </div>
-                )}
+              
+              {/* ヘッダー設定 */}
+              <div className={styles.row} style={{borderTop:'1px dashed #e5e5e5', paddingTop:'20px'}}>
+                <label className={styles.label}>ヘッダー表示設定</label>
+                <select className={styles.select} value={h.type ?? 'none'}
+                  onChange={e => {
+                    setEditingLp({
+                      ...editingLp,
+                      header: { ...h, type: e.target.value as any }
+                    });
+                  }}>
+                  <option value="timer">カウントダウンタイマー</option>
+                  <option value="menu">左ロゴ + ハンバーガーメニュー</option>
+                  <option value="none">表示なし</option>
+                </select>
               </div>
+
+              {h.type === 'timer' && (
+                <div className={styles.row}>
+                  <label className={styles.label}>タイマー周期 (日)</label>
+                  <input type="number" className={styles.input} style={{width:'80px'}} 
+                    value={h.timerPeriodDays ?? 3} 
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10);
+                      setEditingLp({
+                        ...editingLp,
+                        header: { ...h, timerPeriodDays: isNaN(val) ? 0 : val }
+                      });
+                    }} />
+                </div>
+              )}
+
+              {h.type === 'menu' && (
+                <div style={{background:'#f9f9f9', padding:'16px', borderRadius:'8px', marginBottom:'24px'}}>
+                  <div className={styles.row}>
+                    <label className={styles.label}>ロゴ画像</label>
+                    <input key={h.logoSrc || 'logo'} type="file" className={styles.input} accept="image/*" onChange={handleHeaderLogoUpload} />
+                    {h.logoSrc && <img src={h.logoSrc} alt="logo" style={{height:40, marginTop:8}} />}
+                  </div>
+                  
+                  <label className={styles.label}>ドロワーメニュー項目</label>
+                  {h.menuItems.map((item, idx) => (
+                    <div key={idx} className={styles.menuItemRow}>
+                      <div style={{flex:1}}>
+                        <input type="text" placeholder="表示名" className={styles.input} style={{marginBottom:4}}
+                          value={item.label ?? ''} onChange={e => updateMenuItem(idx, 'label', e.target.value)} />
+                        <input type="text" placeholder="リンクURL" className={styles.input}
+                          value={item.href ?? ''} onChange={e => updateMenuItem(idx, 'href', e.target.value)} />
+                      </div>
+                      <div style={{display:'flex', flexDirection:'column', gap:4}}>
+                        <button onClick={() => moveMenuItem(idx, -1)} disabled={idx===0} className={styles.btnSmall}>↑</button>
+                        <button onClick={() => moveMenuItem(idx, 1)} disabled={idx===h.menuItems.length-1} className={styles.btnSmall}>↓</button>
+                        <button onClick={() => removeMenuItem(idx)} className={`${styles.btnSmall} ${styles.btnDanger}`}>×</button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addMenuItem} className={`${styles.btnSmall} ${styles.btnSecondary}`} style={{width:'100%', marginTop:8}}>
+                    + メニュー項目を追加
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className={styles.panel}>
               <h3 className={styles.sectionTitle}>メタデータ・タグ設定</h3>
-              
               <div className={styles.row}>
                  <label className={styles.checkboxGroup}>
                     <input type="checkbox" checked={editingLp.tracking.useDefault} 
@@ -306,56 +434,52 @@ export default function CmsPage() {
                     デフォルト設定を使用
                  </label>
               </div>
-
               {!editingLp.tracking.useDefault && (
                 <>
                   <div className={styles.row}>
                     <label className={styles.label}>GTM ID</label>
-                    <input type="text" className={styles.input} value={editingLp.tracking.gtm || ''} 
+                    <input type="text" className={styles.input} value={editingLp.tracking.gtm ?? ''} 
                       onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, gtm: e.target.value}})} />
                   </div>
                   <div className={styles.row}>
                     <label className={styles.label}>Meta Pixel ID</label>
-                    <input type="text" className={styles.input} value={editingLp.tracking.meta || ''} 
+                    <input type="text" className={styles.input} value={editingLp.tracking.meta ?? ''} 
                       onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, meta: e.target.value}})} />
                   </div>
                 </>
               )}
-
               <div className={styles.row}>
                  <label className={styles.label}>Head内コード (追加)</label>
-                 <textarea className={styles.textarea} value={editingLp.customHeadCode || ''}
+                 <textarea className={styles.textarea} value={editingLp.customHeadCode ?? ''}
                    onChange={e => setEditingLp({...editingLp, customHeadCode: e.target.value})} />
               </div>
               <div className={styles.row}>
                  <label className={styles.label}>Meta Description</label>
-                 <textarea className={styles.textarea} style={{minHeight:'60px'}} value={editingLp.customMetaDescription || ''}
+                 <textarea className={styles.textarea} style={{minHeight:'60px'}} value={editingLp.customMetaDescription ?? ''}
                    onChange={e => setEditingLp({...editingLp, customMetaDescription: e.target.value})} />
               </div>
               <div className={styles.row}>
                  <label className={styles.label}>Favicon (上書き)</label>
-                 <input type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customFavicon')} />
+                 <input key={editingLp.customFavicon || 'fav'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customFavicon')} />
                  <p className={styles.textSmall}>推奨: .png, .ico (正方形)</p>
                  {editingLp.customFavicon && <img src={editingLp.customFavicon} alt="icon" style={{width:32, height:32, marginTop:4}} />}
               </div>
               <div className={styles.row}>
                  <label className={styles.label}>OGP Image (上書き)</label>
-                 <input type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customOgpImage')} />
+                 <input key={editingLp.customOgpImage || 'ogp'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'customOgpImage')} />
                  {editingLp.customOgpImage && <img src={editingLp.customOgpImage} alt="ogp" style={{width:100, marginTop:4}} />}
               </div>
             </div>
 
-            {/* 修正: styles.btn を追加 */}
             <button onClick={handleSaveLp} className={`${styles.btn} ${styles.btnSaveSettings}`}>
               設定を保存
             </button>
-            {/* 修正: styles.btn を追加 */}
+
             <button onClick={handleDeleteLp} className={`${styles.btn} ${styles.btnDeleteLp}`}>
               このLPを削除する
             </button>
           </div>
 
-          {/* --- 右ペイン --- */}
           <div className={styles.rightPane}>
              <h3 className={styles.sectionTitle}>LP構成 / 画像・リンク設定</h3>
              
@@ -363,25 +487,20 @@ export default function CmsPage() {
                <div key={idx} className={styles.imageItem}>
                  <div className={styles.imageHeader}>
                     <span className={styles.imageIndex}>IMG #{idx + 1}</span>
-                    
                     <div className={styles.flexGap}>
                       <span className={styles.subLabel}>順番変更</span>
                       <button onClick={() => moveImage(idx, -1)} disabled={idx === 0} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↑</button>
                       <button onClick={() => moveImage(idx, 1)} disabled={idx === editingLp.images.length - 1} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↓</button>
-                      
                       <div style={{width:'1px', height:'16px', background:'#ddd', margin:'0 8px'}}></div>
-                      
                       <label className={`${styles.btnSecondary} ${styles.btnSmall}`} style={{cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center'}}>
                         画像入れ替え
                         <input type="file" accept="image/*" style={{display:'none'}} onChange={(e) => handleImageReplace(e, idx)} />
                       </label>
-                      
                       <button onClick={() => deleteImage(idx)} className={`${styles.btnDanger} ${styles.btnSmall}`}>削除</button>
                     </div>
                  </div>
 
                  <div className={styles.imageEditorSplit}>
-                    {/* 左: 画像プレビュー (MAX 30% width) */}
                     <div className={styles.imagePreviewArea}>
                        <div className={styles.previewContainer} style={{ width: '100%' }}>
                           <img src={img.src} alt="preview" style={{width:'100%', display:'block'}} />
@@ -395,8 +514,14 @@ export default function CmsPage() {
                        </div>
                     </div>
 
-                    {/* 右: リンク設定 (Sticky) */}
                     <div className={styles.linkInputArea}>
+                       <div style={{marginBottom:'24px', paddingBottom:'16px', borderBottom:'1px dashed #eee'}}>
+                          <label className={styles.label}>ID設定 (任意)</label>
+                          <p className={styles.subLabel} style={{margin:'0 0 8px 0'}}>画像全体を囲むタグにIDを付与します</p>
+                          <input type="text" className={styles.input} placeholder="例: section-1" 
+                            value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                       </div>
+
                        <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px'}}>
                           <label className={styles.label}>リンク設定 ({img.links?.length || 0})</label>
                           <button onClick={() => addLink(idx)} className={`${styles.btnSecondary} ${styles.btnSmall}`}>+ 追加</button>
@@ -411,14 +536,14 @@ export default function CmsPage() {
                                <button onClick={() => removeLink(idx, lIdx)} className="text-red-500" style={{fontSize:10}}>削除</button>
                             </div>
                             <div className={styles.row} style={{marginBottom:'8px'}}>
-                               <input type="text" className={styles.input} placeholder="URL" value={link.href} 
+                               <input type="text" className={styles.input} placeholder="URL" value={link.href ?? ''} 
                                  onChange={e => updateLink(idx, lIdx, 'href', e.target.value)} />
                             </div>
                             <div className={styles.linkRowGrid}>
-                               <div><label className={styles.subLabel}>Top %</label><input type="number" className={styles.input} value={link.top} onChange={e => updateLink(idx, lIdx, 'top', Number(e.target.value))} /></div>
-                               <div><label className={styles.subLabel}>Left %</label><input type="number" className={styles.input} value={link.left} onChange={e => updateLink(idx, lIdx, 'left', Number(e.target.value))} /></div>
-                               <div><label className={styles.subLabel}>W %</label><input type="number" className={styles.input} value={link.width} onChange={e => updateLink(idx, lIdx, 'width', Number(e.target.value))} /></div>
-                               <div><label className={styles.subLabel}>H %</label><input type="number" className={styles.input} value={link.height} onChange={e => updateLink(idx, lIdx, 'height', Number(e.target.value))} /></div>
+                               <div><label className={styles.subLabel}>Top %</label><input type="number" className={styles.input} value={link.top ?? 0} onChange={e => updateLink(idx, lIdx, 'top', Number(e.target.value))} /></div>
+                               <div><label className={styles.subLabel}>Left %</label><input type="number" className={styles.input} value={link.left ?? 0} onChange={e => updateLink(idx, lIdx, 'left', Number(e.target.value))} /></div>
+                               <div><label className={styles.subLabel}>W %</label><input type="number" className={styles.input} value={link.width ?? 0} onChange={e => updateLink(idx, lIdx, 'width', Number(e.target.value))} /></div>
+                               <div><label className={styles.subLabel}>H %</label><input type="number" className={styles.input} value={link.height ?? 0} onChange={e => updateLink(idx, lIdx, 'height', Number(e.target.value))} /></div>
                             </div>
                          </div>
                        ))}
@@ -428,7 +553,7 @@ export default function CmsPage() {
              ))}
 
              <div className={styles.uploadArea} style={{ position: 'relative' }}>
-                <input type="file" accept="image/*" onChange={handleImageUpload} 
+                <input key={editingLp.images.length} type="file" accept="image/*" onChange={handleImageUpload} 
                    style={{opacity:0, position:'absolute', inset:0, width:'100%', height:'100%', cursor:'pointer'}} />
                 <span className={styles.uploadText}>+ 画像を追加 (ドラッグ&ドロップ可)</span>
              </div>
@@ -444,7 +569,7 @@ export default function CmsPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>画像LPバクソクアップローダーPRO</h1>
+        <h1 className={styles.pageTitle}>画像LP爆速アップローダーPRO</h1>
       </div>
 
       <div className={styles.splitLayout}>
@@ -457,38 +582,35 @@ export default function CmsPage() {
               <div className={styles.row}>
                 <label className={styles.label}>GTM ID</label>
                 <input type="text" className={styles.input} placeholder="GTM-XXXXX"
-                  value={globalSettings.defaultGtm} onChange={e => setGlobalSettings({...globalSettings, defaultGtm: e.target.value})} />
+                  value={globalSettings.defaultGtm ?? ''} onChange={e => setGlobalSettings({...globalSettings, defaultGtm: e.target.value})} />
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>Meta Pixel ID</label>
                 <input type="text" className={styles.input} placeholder="Pixel ID"
-                  value={globalSettings.defaultPixel} onChange={e => setGlobalSettings({...globalSettings, defaultPixel: e.target.value})} />
+                  value={globalSettings.defaultPixel ?? ''} onChange={e => setGlobalSettings({...globalSettings, defaultPixel: e.target.value})} />
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>Head内コード追加</label>
                 <textarea className={styles.textarea} placeholder="<script>...</script>"
-                  value={globalSettings.defaultHeadCode} onChange={e => setGlobalSettings({...globalSettings, defaultHeadCode: e.target.value})} />
+                  value={globalSettings.defaultHeadCode ?? ''} onChange={e => setGlobalSettings({...globalSettings, defaultHeadCode: e.target.value})} />
               </div>
               <div className={styles.row}>
                 <label className={styles.label}>サイト説明（Meta Description）</label>
                 <textarea className={styles.textarea} style={{minHeight:'60px'}}
-                  value={globalSettings.defaultMetaDescription} onChange={e => setGlobalSettings({...globalSettings, defaultMetaDescription: e.target.value})} />
+                  value={globalSettings.defaultMetaDescription ?? ''} onChange={e => setGlobalSettings({...globalSettings, defaultMetaDescription: e.target.value})} />
               </div>
-              
               <div className={styles.row}>
                 <label className={styles.label}>ファビコン画像</label>
-                <input type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultFavicon')} />
+                <input key={globalSettings.defaultFavicon || 'fav-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultFavicon')} />
                 <p className={styles.textSmall}>推奨: .png, .ico (正方形)</p>
                 {globalSettings.defaultFavicon && <img src={globalSettings.defaultFavicon} alt="favicon" style={{width:32, height:32, marginTop:8}} />}
               </div>
-
               <div className={styles.row}>
                 <label className={styles.label}>OGP画像</label>
-                <input type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultOgpImage')} />
+                <input key={globalSettings.defaultOgpImage || 'ogp-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultOgpImage')} />
                 {globalSettings.defaultOgpImage && <img src={globalSettings.defaultOgpImage} alt="ogp" style={{width:'100%', marginTop:8, borderRadius:4, border:'1px solid #eee'}} />}
               </div>
 
-              {/* 修正: styles.btn を追加 */}
               <button onClick={handleSaveGlobal} disabled={loading} className={`${styles.btn} ${styles.btnSecondary}`} style={{width:'100%', marginTop:'8px', fontWeight:700}}>
                  設定を保存
               </button>
@@ -499,7 +621,6 @@ export default function CmsPage() {
         <div className={styles.rightPane}>
            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
               <h3 className={styles.sectionTitle} style={{margin:0, border:0}}>プロジェクト一覧</h3>
-              {/* 修正: styles.btn を追加 */}
               <button onClick={handleCreate} className={`${styles.btn} ${styles.btnPrimary}`}>+ 新規LP作成</button>
            </div>
 
@@ -510,7 +631,6 @@ export default function CmsPage() {
                    <h2 className={styles.lpTitle}>{lp.title}</h2>
                    {lp.pageTitle && <p className={styles.lpPageTitle}>{lp.pageTitle}</p>}
                    <p className={styles.lpSlug}>/{lp.slug}</p>
-                   {/* 修正: statusBadge クラスを正しく適用 */}
                    <span className={`${styles.statusBadge} ${
                      lp.status === 'public' ? styles.statusPublic :
                      lp.status === 'private' ? styles.statusPrivate : styles.statusDraft
@@ -525,9 +645,7 @@ export default function CmsPage() {
                  </div>
 
                  <div className={styles.flexGap} style={{marginTop:'16px'}}>
-                   {/* 修正: styles.btn を追加 */}
                    <button onClick={() => handleEdit(lp)} className={`${styles.btn} ${styles.btnPrimary}`} style={{flex:1}}>編集</button>
-                   {/* 修正: styles.btn を追加 */}
                    <a href={`/${lp.slug}`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`} style={{flex:1, textAlign:'center'}}>プレビュー</a>
                  </div>
                </div>

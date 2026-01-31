@@ -1,13 +1,13 @@
 [
   {
-    "id": "a0994185-eba5-4e2b-9be6-975f0306ae1b",
-    "slug": "new-page001",
-    "title": "新規LPプロジェクト1",
-    "pageTitle": "テストのLP001",
+    "id": "66eff4fb-0758-40a5-b2f9-25307ee8f328",
+    "slug": "new-1769867122690",
+    "title": "新規LPプロジェクト01",
+    "pageTitle": "サンプルのLPだ！",
     "status": "public",
     "images": [
       {
-        "src": "/uploads/1769861343818-1769855849515-01.webp",
+        "src": "/uploads/1769867164273-1769855849515-01.webp",
         "alt": "LP Image",
         "links": [
           {
@@ -21,13 +21,15 @@
         ]
       },
       {
-        "src": "/uploads/1769861352656-1769855862073-02.webp",
+        "src": "/uploads/1769867173330-1769855862073-02.webp",
         "alt": "LP Image"
       }
     ],
-    "timer": {
-      "enabled": true,
-      "periodDays": 3
+    "header": {
+      "type": "timer",
+      "timerPeriodDays": 3,
+      "logoSrc": "",
+      "menuItems": []
     },
     "tracking": {
       "gtm": "",
@@ -35,8 +37,12 @@
       "meta": "",
       "useDefault": true
     },
-    "createdAt": "2026-01-31T12:09:35.109Z",
-    "updatedAt": "2026-01-31T12:53:40.991Z",
-    "password": "82jvmt1en36vkru"
+    "createdAt": "2026-01-31T13:47:13.310Z",
+    "updatedAt": "2026-01-31T13:47:13.310Z",
+    "password": "km3hhp9pu4qn48t",
+    "customHeadCode": "",
+    "customMetaDescription": "",
+    "customFavicon": "",
+    "customOgpImage": ""
   }
 ]

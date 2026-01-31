@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
-import { LpData } from '../../cms/actions';
+import { MenuItem } from '../../cms/actions';
 
 const jost = Jost({ subsets: ['latin'], weight: ['500'], display: 'swap' });
 const zenKaku = Zen_Kaku_Gothic_New({ subsets: ['latin'], weight: ['700'], display: 'swap' });
@@ -13,6 +13,7 @@ const ANIMATION_CLASS_VISIBLE = 'opacity-100 translate-y-0';
 const ANIMATION_CLASS_HIDDEN = 'opacity-0 translate-y-10';
 const ANIMATION_TRANSITION = 'transition-all duration-1000 ease-out';
 
+// --- カウントダウンタイマー ---
 export function CountdownHeader({ periodDays }: { periodDays: number }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [mounted, setMounted] = useState(false);
@@ -44,11 +45,9 @@ export function CountdownHeader({ periodDays }: { periodDays: number }) {
     <div className={`w-full bg-[#1b2024] overflow-hidden ${zenKaku.className}`}>
       <div className="w-full h-[53px] flex items-stretch bg-[#1b2024] overflow-hidden">
         <div className="flex-none h-[53px] w-[clamp(140px,36vw,150px)] overflow-hidden leading-[0]">
-             {/* タイマーアイコン画像は既存のものを使用 */}
             <img src="/lp-001/timer-left.svg" alt="Remain" className="w-full h-full block object-cover object-center" draggable={false} />
         </div>
         <div className="flex-1 min-w-0 h-[53px] flex items-center justify-start gap-[clamp(10px,3vw,18px)] px-[clamp(10px,3vw,16px)] overflow-hidden text-white">
-           {/* 時間表示ロジックは簡略化して記述 */}
            <TimerItem num={timeLeft.days} unit="日" />
            <TimerItem num={timeLeft.hours} unit="時間" />
            <TimerItem num={timeLeft.minutes} unit="分" />
@@ -68,6 +67,58 @@ const TimerItem = ({ num, unit }: { num: number, unit: string }) => (
   </div>
 );
 
+// --- メニューヘッダー ---
+export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuItem[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <header className="relative w-full h-[60px] bg-white shadow-sm flex items-center justify-between px-4 z-[50]">
+        <div className="h-[40px]">
+          {logoSrc && <img src={logoSrc} alt="Logo" className="h-full w-auto object-contain" />}
+        </div>
+        <button onClick={() => setIsOpen(true)} className="p-2">
+          <div className="w-6 h-0.5 bg-gray-800 mb-1.5"></div>
+          <div className="w-6 h-0.5 bg-gray-800 mb-1.5"></div>
+          <div className="w-6 h-0.5 bg-gray-800"></div>
+        </button>
+      </header>
+
+      {/* Drawer */}
+      <div 
+        className={`fixed inset-0 z-[100] transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(0,0,0,0.5)' }}
+        onClick={() => setIsOpen(false)}
+      >
+        <div 
+          className={`absolute top-0 right-0 h-full w-[280px] bg-white shadow-lg transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex justify-end p-4 border-b">
+            <button onClick={() => setIsOpen(false)} className="text-2xl leading-none p-2">&times;</button>
+          </div>
+          <nav className="flex-1 overflow-y-auto p-4">
+            <ul className="space-y-4">
+              {items.map((item, idx) => (
+                <li key={idx}>
+                  <Link 
+                    href={item.href} 
+                    onClick={() => setIsOpen(false)}
+                    className="block text-lg font-bold text-gray-800 hover:text-gray-600 border-b pb-2"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// --- 画像表示 ---
 export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -87,7 +138,12 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
   }, []);
 
   return (
-    <div ref={ref} className={`relative w-full ${ANIMATION_TRANSITION} ${isVisible ? ANIMATION_CLASS_VISIBLE : ANIMATION_CLASS_HIDDEN}`}>
+    <div 
+      ref={ref} 
+      // セクションIDを適用 (カスタムIDがある場合)
+      id={data.customId}
+      className={`relative w-full ${ANIMATION_TRANSITION} ${isVisible ? ANIMATION_CLASS_VISIBLE : ANIMATION_CLASS_HIDDEN}`}
+    >
       <Image
         src={data.src}
         alt={data.alt}
