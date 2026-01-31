@@ -20,6 +20,10 @@ const siteDescription =
 export const metadata: Metadata = {
   title: siteTitle,
   description: siteDescription,
+  icons: {
+    icon: '/favicon.ico', // publicフォルダに移動したアイコンを指定
+    apple: '/favicon.ico',
+  },
   openGraph: {
     title: siteTitle,
     description: siteDescription,
