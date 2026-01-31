@@ -1,14 +1,20 @@
 'use server';
 
-import fs from 'fs';
-import path from 'path';
 import { revalidatePath } from 'next/cache';
+import { Redis } from '@upstash/redis';
+import { put } from '@vercel/blob';
 
-const DB_PATH = path.join(process.cwd(), 'data/lps.json');
-const SETTINGS_PATH = path.join(process.cwd(), 'data/settings.json');
-const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads');
+// --- DB設定 (Upstash Redis) ---
+// 環境変数を自動検知して接続します
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
-// --- 型定義 ---
+const KEY_LPS = 'lps_data';
+const KEY_SETTINGS = 'global_settings';
+
+// --- 型定義 (変更なし) ---
 
 export type LinkArea = {
   left: number;
@@ -72,57 +78,38 @@ export type LpData = {
   updatedAt: string;
 };
 
-// --- ヘルパー関数 ---
-
-const readJSON = <T>(filePath: string, defaultVal: T): T => {
-  if (!fs.existsSync(filePath)) return defaultVal;
-  try {
-    const data = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(data);
-    if (Array.isArray(defaultVal)) {
-      return (Array.isArray(parsed) ? parsed : defaultVal) as T;
-    } else if (typeof defaultVal === 'object' && defaultVal !== null) {
-      return { ...defaultVal, ...parsed };
-    }
-    return parsed as T;
-  } catch (e) {
-    return defaultVal;
-  }
-};
-
-const writeJSON = (filePath: string, data: any) => {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-};
-
-// --- 全体設定 ---
+// --- 全体設定 (Redis) ---
 
 export async function getGlobalSettings(): Promise<GlobalSettings> {
-  return readJSON<GlobalSettings>(SETTINGS_PATH, {
+  // Redisから取得。なければnullが返るのでデフォルト値を適用
+  const settings = await redis.get<GlobalSettings>(KEY_SETTINGS);
+  
+  return {
     defaultGtm: '',
     defaultPixel: '',
     defaultHeadCode: '',
     defaultMetaDescription: '',
     defaultFavicon: '',
     defaultOgpImage: '',
-  });
+    ...(settings || {})
+  };
 }
 
 export async function saveGlobalSettings(settings: GlobalSettings) {
-  writeJSON(SETTINGS_PATH, settings);
+  await redis.set(KEY_SETTINGS, settings);
   revalidatePath('/cms');
   return { success: true };
 }
 
-// --- LP管理 ---
+// --- LP管理 (Redis) ---
 
 export async function getLps() {
-  const lps = readJSON<any[]>(DB_PATH, []);
+  // Redisからデータを取得
+  const lps = await redis.get<any[]>(KEY_LPS) || [];
   
+  // データの正規化処理（古いデータ構造対策）
   return lps.map(lp => {
-    // ヘッダー設定のマイグレーション & 完全補完
-    const headerDefaults = {
+    const headerDefaults: HeaderConfig = {
       type: 'none',
       timerPeriodDays: 3,
       logoSrc: '',
@@ -130,18 +117,13 @@ export async function getLps() {
     };
 
     if (!lp.header) {
-      // 古いタイマー設定があれば引き継ぎ
       lp.header = {
         ...headerDefaults,
         type: lp.timer?.enabled ? 'timer' : 'none',
         timerPeriodDays: lp.timer?.periodDays ?? 3,
       };
     } else {
-      // headerオブジェクトはあるが中身が欠けている場合の補完
-      lp.header = {
-        ...headerDefaults,
-        ...lp.header
-      };
+      lp.header = { ...headerDefaults, ...lp.header };
     }
 
     if (!lp.pageTitle) lp.pageTitle = '';
@@ -151,9 +133,11 @@ export async function getLps() {
 }
 
 export async function saveLp(lp: LpData) {
+  // 最新のリストを取得
   const lps = await getLps();
   const index = lps.findIndex((item) => item.id === lp.id);
   
+  // スラッグ重複チェック（自分自身は除外）
   const slugExists = lps.some(item => item.slug === lp.slug && item.id !== lp.id);
   if (slugExists) {
     throw new Error('このスラッグは既に使用されています。');
@@ -161,7 +145,7 @@ export async function saveLp(lp: LpData) {
 
   const now = new Date().toISOString();
 
-  // 保存時にデータを整形
+  // 保存データの整形
   const safeLp = {
     ...lp,
     header: {
@@ -186,7 +170,9 @@ export async function saveLp(lp: LpData) {
     });
   }
 
-  writeJSON(DB_PATH, lps);
+  // Redisに保存
+  await redis.set(KEY_LPS, lps);
+  
   revalidatePath('/cms');
   revalidatePath(`/${lp.slug}`);
   return { success: true };
@@ -195,27 +181,23 @@ export async function saveLp(lp: LpData) {
 export async function deleteLp(id: string) {
   const lps = await getLps();
   const newLps = lps.filter(item => item.id !== id);
-  writeJSON(DB_PATH, newLps);
+  await redis.set(KEY_LPS, newLps);
   revalidatePath('/cms');
   return { success: true };
 }
 
+// 画像アップロード (Vercel Blob)
 export async function uploadImage(formData: FormData) {
   const file = formData.get('file') as File;
   if (!file) throw new Error('No file uploaded');
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
+  // Vercel Blobへアップロード (publicアクセス)
+  const blob = await put(file.name, file, {
+    access: 'public',
+  });
 
-  const fileName = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-  const filePath = path.join(UPLOAD_DIR, fileName);
-
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
-
-  fs.writeFileSync(filePath, buffer);
-  return `/uploads/${fileName}`;
+  // BlobのURL (https://...) を返す
+  return blob.url;
 }
 
 export async function generateRandomPassword() {
