@@ -802,7 +802,7 @@ export default function CmsPage() {
       {loadingOverlay}
       {libraryModal}
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>画像LP爆速アップローダーPRO</h1>
+        <h1 className={styles.pageTitle}>爆速画像LPコーディングPRO</h1>
       </div>
 
       <div className={styles.splitLayout}>
