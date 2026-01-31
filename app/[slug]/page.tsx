@@ -142,10 +142,13 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         )}
 
         {/* コンテンツ */}
-        {/* ★修正: overflow-hidden を削除 */}
         <div className="md:max-w-[425px] w-full mx-auto bg-white relative flex flex-col">
           {lp.images.map((img, index) => (
-            <section key={index} className="w-full">
+            <section 
+              key={index} 
+              // ★修正: 最後の画像セクションのみ overflow-hidden を適用
+              className={`w-full ${index === lp.images.length - 1 ? 'overflow-hidden' : ''}`}
+            >
               <FadeInImage data={img} index={index} />
             </section>
           ))}
