@@ -352,8 +352,8 @@ export default function LpPage() {
           </div>
         </div>
 
-        {/* ヘッダー分のスペーサー */}
-        <div className="w-full h-[53px] bg-[#1B2024]" />
+        {/* ヘッダー分のスペーサー: PCでも画像幅(425px)に合わせるよう修正 */}
+<div className="w-full md:max-w-[425px] mx-auto h-[53px] bg-[#1B2024]" />
 
         <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
           {IMAGES.map((img, index) => (
