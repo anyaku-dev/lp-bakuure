@@ -146,8 +146,8 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
           {lp.images.map((img, index) => (
             <section 
               key={index} 
-              // ★修正: 最後の画像セクションのみ overflow-hidden を適用
-              className={`w-full ${index === lp.images.length - 1 ? 'overflow-hidden' : ''}`}
+              // ★修正: overflow-hidden の条件分岐を削除し、元の記述に戻しました
+              className="w-full"
             >
               <FadeInImage data={img} index={index} />
             </section>
