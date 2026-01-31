@@ -142,8 +142,8 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         )}
 
         {/* コンテンツ */}
-        {/* ★修正: overflow-hidden を追加し、アニメーションのはみ出しによるページ伸長を防止 */}
-        <div className="md:max-w-[425px] w-full mx-auto bg-white relative flex flex-col overflow-hidden">
+        {/* ★修正: overflow-hidden を削除 */}
+        <div className="md:max-w-[425px] w-full mx-auto bg-white relative flex flex-col">
           {lp.images.map((img, index) => (
             <section key={index} className="w-full">
               <FadeInImage data={img} index={index} />
