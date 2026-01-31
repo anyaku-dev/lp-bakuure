@@ -84,7 +84,6 @@ export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuIt
         </button>
       </header>
 
-      {/* Drawer Overlay */}
       <div 
         className={`fixed inset-y-0 left-1/2 transform -translate-x-1/2 w-full max-w-[425px] z-[100] transition-visibility duration-300 ${isOpen ? 'visible' : 'invisible'}`}
         style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
@@ -129,7 +128,7 @@ export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuIt
   );
 }
 
-// --- 固定フッターCTA (修正版: 表示時のみクリック有効化) ---
+// --- 固定フッターCTA ---
 export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -139,10 +138,7 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
       const windowHeight = window.innerHeight;
       const docHeight = document.documentElement.scrollHeight;
 
-      // 1. 出現条件
       const isAfterStart = scrollY >= (config.showAfterPx || 0);
-
-      // 2. 非表示条件 (最下部付近で消す)
       const remaining = docHeight - (scrollY + windowHeight);
       const isBeforeEnd = config.hideBeforeBottomPx > 0 ? remaining > config.hideBeforeBottomPx : true;
 
@@ -167,7 +163,6 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
            className="absolute bottom-0 left-0 w-full flex justify-center pointer-events-none" 
            style={{ paddingBottom: `${config.bottomMargin}px` }}
         >
-          {/* ★修正ポイント: isVisible が true の時だけ pointer-events-auto にする */}
           <a 
             href={config.href} 
             className={`block transition-transform active:scale-[0.98] hover:opacity-95 ${
@@ -210,6 +205,7 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
     <div 
       ref={ref} 
       id={data.customId}
+      // ★修正: leading-[0] font-[0] を削除し、正常なLPと同じ構造に戻しました
       className={`relative w-full ${ANIMATION_TRANSITION} ${isVisible ? ANIMATION_CLASS_VISIBLE : ANIMATION_CLASS_HIDDEN}`}
     >
       <Image

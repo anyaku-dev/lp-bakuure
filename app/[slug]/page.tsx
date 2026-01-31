@@ -24,9 +24,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = lp.pageTitle || lp.title;
   const description = lp.customMetaDescription || globalSettings.defaultMetaDescription || '';
-  const baseFavicon = lp.customFavicon || globalSettings.defaultFavicon || '/favicon.ico';
+  
+  const rawFavicon = lp.customFavicon || globalSettings.defaultFavicon;
+  let faviconUrl = '/favicon.ico';
+  if (rawFavicon) {
+    const separator = rawFavicon.includes('?') ? '&' : '?';
+    faviconUrl = `${rawFavicon}${separator}v=${Date.now()}`;
+  }
+
   const ogpImage = lp.customOgpImage || globalSettings.defaultOgpImage;
-  const faviconUrl = baseFavicon.startsWith('/') ? `${baseFavicon}?v=${Date.now()}` : baseFavicon;
 
   return {
     title: title,
@@ -71,7 +77,6 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
   return (
     <>
-      {/* カスタムCSSの適用 */}
       {lp.customCss && (
         <style dangerouslySetInnerHTML={{ __html: lp.customCss }} />
       )}
@@ -118,7 +123,6 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
       )}
 
       <main className="min-h-screen bg-white">
-        {/* ヘッダー分岐 */}
         {lp.header?.type === 'timer' && (
           <>
             <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
@@ -142,19 +146,15 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         )}
 
         {/* コンテンツ */}
-        <div className="md:max-w-[425px] w-full mx-auto bg-white relative flex flex-col">
+        {/* ★修正: flex flex-col を削除し、正常なLPと同じブロックレイアウトに戻しました */}
+        <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
           {lp.images.map((img, index) => (
-            <section 
-              key={index} 
-              // ★修正: overflow-hidden の条件分岐を削除し、元の記述に戻しました
-              className="w-full"
-            >
+            <section key={index} className="w-full">
               <FadeInImage data={img} index={index} />
             </section>
           ))}
         </div>
 
-        {/* 固定フッターCTA */}
         {lp.footerCta?.enabled && (
            <FixedFooterCta config={lp.footerCta} />
         )}
