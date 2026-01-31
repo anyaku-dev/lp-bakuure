@@ -284,7 +284,7 @@ const FadeInImage = ({ data, index }: { data: ImageData; index: number }) => {
         alt={data.alt}
         width={0}
         height={0}
-        sizes="(max-width: 768px) 100vw, 425px"
+        sizes="(max-width: 425px) 100vw, 425px"
         className="w-full h-auto block"
         priority={index < 2} // ファーストビュー付近は優先読み込み
       />
@@ -347,7 +347,7 @@ export default function LpPage() {
       <main className="min-h-screen bg-white">
         {/* 固定ヘッダー */}
         <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
-          <div className="w-full md:max-w-[425px] pointer-events-auto shadow-lg">
+          <div className="w-full max-w-[425px] pointer-events-auto shadow-lg">
             <CountdownHeader />
           </div>
         </div>
@@ -355,7 +355,7 @@ export default function LpPage() {
         {/* ヘッダー分のスペーサー */}
         <div className="w-full h-[53px] bg-[#1B2024]" />
 
-        <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
+        <div className="max-w-[425px] w-full mx-auto bg-white relative">
           {IMAGES.map((img, index) => (
             <section key={index} className="w-full">
               <FadeInImage data={img} index={index} />
@@ -367,10 +367,10 @@ export default function LpPage() {
               showCta ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <div className={`w-full md:max-w-[425px] flex justify-center pb-[20px] ${showCta ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+            <div className={`w-full max-w-[425px] flex justify-center pb-[28px] ${showCta ? 'pointer-events-auto' : 'pointer-events-none'}`}>
               <Link
                 href={PURCHASE_LINK}
-                className="block relative"
+                className="block relative transition-transform hover:scale-105 active:scale-95 shadow-xl rounded-full overflow-hidden"
                 style={{ width: '80.47%' }}
               >
                 <Image
@@ -378,7 +378,7 @@ export default function LpPage() {
                   alt="テンプレ集を購入する"
                   width={0}
                   height={0}
-                  sizes="(max-width: 768px) 80vw, 342px"
+                  sizes="(max-width: 425px) 80vw, 342px"
                   className="w-full h-auto block"
                 />
               </Link>
