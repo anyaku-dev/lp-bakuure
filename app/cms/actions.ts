@@ -67,6 +67,8 @@ export type GlobalSettings = {
   defaultMetaDescription: string;
   defaultFavicon: string;
   defaultOgpImage: string;
+  autoWebp: boolean;
+  webpQuality: number;
 };
 
 export type LpData = {
@@ -101,6 +103,8 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     defaultMetaDescription: '',
     defaultFavicon: '',
     defaultOgpImage: '',
+    autoWebp: false,
+    webpQuality: 75,
     ...(settings || {})
   };
 }
