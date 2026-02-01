@@ -60,6 +60,7 @@ export type TrackingConfig = {
   useDefault: boolean;
 };
 
+// ★更新: 詳細設定用のフィールドを追加
 export type GlobalSettings = {
   defaultGtm: string;
   defaultPixel: string;
@@ -69,8 +70,22 @@ export type GlobalSettings = {
   defaultOgpImage: string;
   autoWebp: boolean;
   webpQuality: number;
+  // 追加フィールド
+  animationEnabled: boolean;
+  animationDuration: number;
+  animationDelay: number;
+  pcMaxWidth: number;
+  pcBackgroundImage: string;
 };
 
+export type SideImagesConfig = {
+  leftSrc: string;
+  rightSrc: string;
+  widthPercent: number;
+  verticalAlign: 'top' | 'center';
+};
+
+// ★更新: 詳細設定用のフィールドを追加
 export type LpData = {
   id: string;
   slug: string;
@@ -87,6 +102,9 @@ export type LpData = {
   customFavicon?: string;
   customOgpImage?: string;
   customCss?: string;
+  // 追加フィールド
+  pcBackgroundImage?: string; // 上書き用
+  sideImages?: SideImagesConfig;
   createdAt: string;
   updatedAt: string;
 };
@@ -105,6 +123,12 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     defaultOgpImage: '',
     autoWebp: false,
     webpQuality: 75,
+    // 追加フィールドのデフォルト値
+    animationEnabled: true,
+    animationDuration: 0.6,
+    animationDelay: 0.1,
+    pcMaxWidth: 480,
+    pcBackgroundImage: '',
     ...(settings || {})
   };
 }
@@ -156,6 +180,16 @@ export async function getLps() {
 
     if (!lp.pageTitle) lp.pageTitle = '';
     
+    // サイド画像の初期化
+    if (!lp.sideImages) {
+      lp.sideImages = {
+        leftSrc: '',
+        rightSrc: '',
+        widthPercent: 15,
+        verticalAlign: 'top'
+      };
+    }
+
     return lp as LpData;
   });
 }
@@ -171,7 +205,7 @@ export async function saveLp(lp: LpData) {
 
   const now = new Date().toISOString();
 
-  const safeLp = {
+  const safeLp: LpData = {
     ...lp,
     header: {
       type: lp.header?.type || 'none',
@@ -188,6 +222,13 @@ export async function saveLp(lp: LpData) {
       showAfterPx: lp.footerCta?.showAfterPx ?? 0,
       hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0
     },
+    sideImages: {
+      leftSrc: lp.sideImages?.leftSrc || '',
+      rightSrc: lp.sideImages?.rightSrc || '',
+      widthPercent: lp.sideImages?.widthPercent ?? 15,
+      verticalAlign: lp.sideImages?.verticalAlign || 'top'
+    },
+    pcBackgroundImage: lp.pcBackgroundImage || '',
     customCss: lp.customCss || ''
   };
 
@@ -219,7 +260,7 @@ export async function deleteLp(id: string) {
   return { success: true };
 }
 
-// ★追加: 複製機能
+// 複製機能
 export async function duplicateLp(sourceId: string) {
   const lps = await getLps();
   const sourceLp = lps.find(item => item.id === sourceId);

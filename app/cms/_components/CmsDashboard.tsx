@@ -5,7 +5,7 @@ import { LpData, GlobalSettings } from '../actions';
 type Props = {
   lps: LpData[];
   globalSettings: GlobalSettings;
-  initialGlobalSettings: GlobalSettings; // 変更検知用
+  initialGlobalSettings: GlobalSettings;
   setGlobalSettings: (s: GlobalSettings) => void;
   handleSaveGlobal: () => void;
   handleCreate: () => void;
@@ -16,21 +16,23 @@ type Props = {
   formatDate: (d?: string) => string;
   STATUS_LABELS: Record<string, string>;
   loading: boolean;
-  styles: any; // CSS Moduleを受け取る
+  styles: any;
+  // ★追加: アコーディオン制御
+  isGlobalAdvancedOpen: boolean;
+  setIsGlobalAdvancedOpen: (v: boolean) => void;
 };
 
 export const CmsDashboard = ({
   lps, globalSettings, initialGlobalSettings, setGlobalSettings, handleSaveGlobal,
   handleCreate, handleEdit, handleDuplicate, handleGlobalUpload,
-  openLibrary, formatDate, STATUS_LABELS, loading, styles
+  openLibrary, formatDate, STATUS_LABELS, loading, styles,
+  isGlobalAdvancedOpen, setIsGlobalAdvancedOpen
 }: Props) => {
 
-  // 全体の変更検知
   const isDirty = useMemo(() => {
     return JSON.stringify(globalSettings) !== JSON.stringify(initialGlobalSettings);
   }, [globalSettings, initialGlobalSettings]);
 
-  // WebP設定部分だけの変更検知
   const isWebpDirty = useMemo(() => {
     return (
       globalSettings.autoWebp !== initialGlobalSettings.autoWebp ||
@@ -42,7 +44,6 @@ export const CmsDashboard = ({
     <div className={styles.splitLayout}>
       <div className={styles.leftPane}>
         
-        {/* 自動軽量WebP化設定パネル */}
         <div className={styles.panel} style={{borderColor: globalSettings.autoWebp ? '#0071e3' : '#eee'}}>
           <h3 className={styles.sectionTitle}>自動軽量Webp化</h3>
           <div className={styles.row}>
@@ -78,12 +79,9 @@ export const CmsDashboard = ({
                <p className={styles.subLabel} style={{lineHeight: '1.6', marginTop: 8}}>
                  オンにすると、アップロードされたLP画像を自動的に軽量なWebp画像に変換します。推奨は75%です。
                  近年の高解像度なディスプレイに対応するため、画像の解像度は1280px〜1440pxを推奨します。
-                 （このツールは画像幅・高さは変更しません）
                </p>
             </div>
           )}
-
-          {/* WebP設定変更時のみ表示される保存ボタン */}
           {isWebpDirty && (
             <button 
               onClick={handleSaveGlobal} 
@@ -129,7 +127,6 @@ export const CmsDashboard = ({
               <input key={globalSettings.defaultFavicon || 'fav-g'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'defaultFavicon')} style={{flex:1}} />
               <button onClick={() => openLibrary(url => setGlobalSettings({...globalSettings, defaultFavicon: url}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
             </div>
-            <p className={styles.textSmall}>推奨: .png, .ico (正方形)</p>
             {globalSettings.defaultFavicon && <img src={globalSettings.defaultFavicon} alt="favicon" style={{width:32, height:32, marginTop:8}} />}
           </div>
           <div className={styles.row}>
@@ -140,23 +137,87 @@ export const CmsDashboard = ({
             </div>
             {globalSettings.defaultOgpImage && <img src={globalSettings.defaultOgpImage} alt="ogp" style={{width:'100%', marginTop:8, borderRadius:4, border:'1px solid #eee'}} />}
           </div>
+        </div>
 
-          <button 
+        {/* ★追加: 詳細設定（アコーディオン） */}
+        <div className={styles.panel} style={{marginTop: '24px'}}>
+          <div 
+            onClick={() => setIsGlobalAdvancedOpen(!isGlobalAdvancedOpen)}
+            style={{display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', userSelect:'none'}}
+          >
+            <h3 className={styles.sectionTitle} style={{margin:0}}>詳細設定 (アニメーション・PC幅)</h3>
+            <span style={{transform: isGlobalAdvancedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition:'0.2s'}}>▼</span>
+          </div>
+
+          {isGlobalAdvancedOpen && (
+            <div style={{marginTop:'20px', paddingTop:'20px', borderTop:'1px dashed #eee'}}>
+              <div className={styles.row}>
+                <label className={styles.checkboxGroup} style={{fontWeight:600}}>
+                    <input 
+                      type="checkbox" 
+                      checked={globalSettings.animationEnabled} 
+                      onChange={e => setGlobalSettings({...globalSettings, animationEnabled: e.target.checked})} 
+                    />
+                    出現アニメーションを有効にする (フェードイン)
+                </label>
+              </div>
+
+              <div className={styles.grid2}>
+                <div>
+                  <label className={styles.label}>アニメーション速度 (秒)</label>
+                  <input 
+                    type="number" step="0.1" className={styles.input} 
+                    value={globalSettings.animationDuration} 
+                    onChange={e => setGlobalSettings({...globalSettings, animationDuration: Number(e.target.value)})} 
+                  />
+                </div>
+                <div>
+                  <label className={styles.label}>遅延 (秒)</label>
+                  <input 
+                    type="number" step="0.1" className={styles.input} 
+                    value={globalSettings.animationDelay} 
+                    onChange={e => setGlobalSettings({...globalSettings, animationDelay: Number(e.target.value)})} 
+                  />
+                </div>
+              </div>
+              
+              <div className={styles.row} style={{marginTop:'16px'}}>
+                <label className={styles.label}>PC表示時の最大幅 (px)</label>
+                <p className={styles.subLabel}>PCブラウザで表示した際、これ以上広がらないようにする幅です。</p>
+                <input 
+                  type="number" className={styles.input} placeholder="例: 480"
+                  value={globalSettings.pcMaxWidth} 
+                  onChange={e => setGlobalSettings({...globalSettings, pcMaxWidth: Number(e.target.value)})} 
+                />
+              </div>
+
+              <div className={styles.row} style={{marginTop:'16px'}}>
+                <label className={styles.label}>PC用背景画像 (全体デフォルト)</label>
+                <p className={styles.subLabel}>PC表示時に、コンテンツの外側に表示される背景画像です。</p>
+                <div style={{display:'flex', gap:8}}>
+                  <input key={globalSettings.pcBackgroundImage || 'pc-bg'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'pcBackgroundImage')} style={{flex:1}} />
+                  <button onClick={() => openLibrary(url => setGlobalSettings({...globalSettings, pcBackgroundImage: url}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                </div>
+                {globalSettings.pcBackgroundImage && <img src={globalSettings.pcBackgroundImage} alt="pc-bg" style={{height:60, marginTop:8, border:'1px solid #eee'}} />}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button 
             onClick={handleSaveGlobal} 
             disabled={loading || !isDirty} 
             className={styles.btn} 
             style={{
-              width:'100%', marginTop:'8px', fontWeight:700, 
-              // ★修正: 変更検知時のスタイル切り替え
-              background: isDirty ? '#000' : '#fff', // 変更あり:黒, なし:白
-              color: isDirty ? '#fff' : '#ccc',      // 変更あり:白, なし:グレー
+              width:'100%', marginTop:'24px', fontWeight:700, 
+              background: isDirty ? '#000' : '#fff',
+              color: isDirty ? '#fff' : '#ccc',
               border: isDirty ? 'none' : '1px solid #eee',
               cursor: isDirty ? 'pointer' : 'default'
             }}
           >
              {isDirty ? '設定を保存' : '変更なし'}
-          </button>
-        </div>
+        </button>
       </div>
 
       <div className={styles.rightPane}>

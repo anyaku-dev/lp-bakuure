@@ -24,7 +24,19 @@ type Props = {
   updateLink: (imgIndex: number, linkIndex: number, key: string, val: any) => void;
   removeLink: (imgIndex: number, linkIndex: number) => void;
   STATUS_LABELS: Record<string, string>;
-  styles: any; 
+  styles: any;
+  // アコーディオン制御・ハンドラ
+  isLpAdvancedOpen: boolean;
+  setIsLpAdvancedOpen: (v: boolean) => void;
+  handleSideImageUpload: (e: React.ChangeEvent<HTMLInputElement>, side: 'left' | 'right') => void;
+};
+
+// ★追加: デフォルトのサイド画像設定（型エラー回避用）
+const DEFAULT_SIDE_IMAGES = {
+  leftSrc: '',
+  rightSrc: '',
+  widthPercent: 15,
+  verticalAlign: 'top' as const
 };
 
 export const CmsEditor = ({
@@ -34,13 +46,13 @@ export const CmsEditor = ({
   moveImage, deleteImage,
   addMenuItem, updateMenuItem, removeMenuItem, moveMenuItem,
   updateImageId, addLink, updateLink, removeLink,
-  STATUS_LABELS, styles
+  STATUS_LABELS, styles,
+  isLpAdvancedOpen, setIsLpAdvancedOpen, handleSideImageUpload
 }: Props) => {
   const h = editingLp.header;
   const f = editingLp.footerCta;
 
   return (
-    // ★修正: style属性を削除し、cms.module.css の .splitLayout をそのまま適用
     <div className={styles.splitLayout}>
       <div className={styles.leftPane}>
         <div className={styles.panel}>
@@ -177,6 +189,81 @@ export const CmsEditor = ({
              </div>
              {editingLp.customOgpImage && <img src={editingLp.customOgpImage} alt="ogp" style={{width:100, marginTop:4}} />}
           </div>
+        </div>
+
+        {/* 詳細設定（アコーディオン） */}
+        <div className={styles.panel} style={{marginTop: '24px'}}>
+          <div 
+            onClick={() => setIsLpAdvancedOpen(!isLpAdvancedOpen)}
+            style={{display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', userSelect:'none'}}
+          >
+            <h3 className={styles.sectionTitle} style={{margin:0}}>詳細設定 (PC用背景・サイド画像)</h3>
+            <span style={{transform: isLpAdvancedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition:'0.2s'}}>▼</span>
+          </div>
+
+          {isLpAdvancedOpen && (
+            <div style={{marginTop:'20px', paddingTop:'20px', borderTop:'1px dashed #eee'}}>
+              <p className={styles.subLabel} style={{marginBottom:'16px'}}>PC画面（幅が広いデバイス）でのみ表示される装飾を設定できます。</p>
+              
+              <div className={styles.row}>
+                <label className={styles.label}>PC用背景画像 (上書き)</label>
+                <div style={{display:'flex', gap:8}}>
+                  <input key={editingLp.pcBackgroundImage || 'pc-bg-lp'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'pcBackgroundImage')} style={{flex:1}} />
+                  <button onClick={() => openLibrary(url => setEditingLp({...editingLp, pcBackgroundImage: url}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                </div>
+                {editingLp.pcBackgroundImage && <img src={editingLp.pcBackgroundImage} alt="pc-bg" style={{height:60, marginTop:8, border:'1px solid #eee'}} />}
+              </div>
+
+              <div style={{borderTop:'1px dotted #eee', margin:'16px 0'}}></div>
+
+              {/* 左画像 */}
+              <div className={styles.row}>
+                <label className={styles.label}>左サイド画像</label>
+                <div style={{display:'flex', gap:8}}>
+                   <input type="file" className={styles.input} accept="image/*" onChange={e => handleSideImageUpload(e, 'left')} style={{flex:1}} />
+                   {/* ★修正: DEFAULT_SIDE_IMAGES を使用して型エラーを回避 */}
+                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), leftSrc: url}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                </div>
+                {editingLp.sideImages?.leftSrc && <img src={editingLp.sideImages.leftSrc} alt="left" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+              </div>
+
+              {/* 右画像 */}
+              <div className={styles.row}>
+                <label className={styles.label}>右サイド画像</label>
+                <div style={{display:'flex', gap:8}}>
+                   <input type="file" className={styles.input} accept="image/*" onChange={e => handleSideImageUpload(e, 'right')} style={{flex:1}} />
+                   {/* ★修正: DEFAULT_SIDE_IMAGES を使用して型エラーを回避 */}
+                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), rightSrc: url}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                </div>
+                {editingLp.sideImages?.rightSrc && <img src={editingLp.sideImages.rightSrc} alt="right" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+              </div>
+
+              {/* 設定 */}
+              <div className={styles.grid2}>
+                 <div>
+                    <label className={styles.label}>画像の幅 (%)</label>
+                    <input 
+                      type="number" className={styles.input} 
+                      value={editingLp.sideImages?.widthPercent ?? 15}
+                      // ★修正: DEFAULT_SIDE_IMAGES を使用
+                      onChange={e => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), widthPercent: Number(e.target.value)}})} 
+                    />
+                 </div>
+                 <div>
+                    <label className={styles.label}>縦位置揃え</label>
+                    <select 
+                      className={styles.select}
+                      value={editingLp.sideImages?.verticalAlign ?? 'top'}
+                      // ★修正: DEFAULT_SIDE_IMAGES を使用
+                      onChange={e => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), verticalAlign: e.target.value as any}})} 
+                    >
+                       <option value="top">上揃え (Top)</option>
+                       <option value="center">中央揃え (Center)</option>
+                    </select>
+                 </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <button onClick={handleSaveLp} className={`${styles.btn} ${styles.btnSaveSettings}`}>設定を保存</button>

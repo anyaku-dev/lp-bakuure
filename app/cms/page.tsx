@@ -31,15 +31,47 @@ const STATUS_LABELS = {
 // --- 初期値と正規化関数 ---
 const EMPTY_HEADER: HeaderConfig = { type: 'none', timerPeriodDays: 3, logoSrc: '', menuItems: [] };
 const EMPTY_FOOTER_CTA: FooterCtaConfig = { enabled: false, imageSrc: '', href: '', widthPercent: 90, bottomMargin: 20, showAfterPx: 0, hideBeforeBottomPx: 0 };
-const EMPTY_LP: LpData = { id: '', slug: '', title: '新規LPプロジェクト', pageTitle: '', status: 'draft', images: [], header: { ...EMPTY_HEADER }, footerCta: { ...EMPTY_FOOTER_CTA }, tracking: { gtm: '', pixel: '', meta: '', useDefault: true }, customCss: '', createdAt: '', updatedAt: '' };
-const EMPTY_GLOBAL: GlobalSettings = { defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', defaultFavicon: '', defaultOgpImage: '', autoWebp: false, webpQuality: 75 };
+const EMPTY_LP: LpData = { 
+  id: '', slug: '', title: '新規LPプロジェクト', pageTitle: '', status: 'draft', images: [], 
+  header: { ...EMPTY_HEADER }, footerCta: { ...EMPTY_FOOTER_CTA }, 
+  tracking: { gtm: '', pixel: '', meta: '', useDefault: true }, 
+  customCss: '', createdAt: '', updatedAt: '', 
+  pcBackgroundImage: '', 
+  sideImages: { leftSrc: '', rightSrc: '', widthPercent: 15, verticalAlign: 'top' } 
+};
+const EMPTY_GLOBAL: GlobalSettings = { 
+  defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
+  defaultFavicon: '', defaultOgpImage: '', autoWebp: false, webpQuality: 75,
+  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: ''
+};
 
 const normalizeLp = (lp: Partial<LpData>): LpData => {
-  return { ...EMPTY_LP, ...lp, header: { ...EMPTY_HEADER, ...(lp.header || {}), menuItems: lp.header?.menuItems || [], timerPeriodDays: lp.header?.timerPeriodDays ?? 3 }, footerCta: { ...EMPTY_FOOTER_CTA, ...(lp.footerCta || {}), widthPercent: lp.footerCta?.widthPercent ?? 90, bottomMargin: lp.footerCta?.bottomMargin ?? 20, showAfterPx: lp.footerCta?.showAfterPx ?? 0, hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0 }, tracking: { gtm: '', pixel: '', meta: '', useDefault: true, ...(lp.tracking || {}) }, images: lp.images || [], pageTitle: lp.pageTitle ?? '', customHeadCode: lp.customHeadCode ?? '', customMetaDescription: lp.customMetaDescription ?? '', customFavicon: lp.customFavicon ?? '', customOgpImage: lp.customOgpImage ?? '', customCss: lp.customCss ?? '' };
+  return { 
+    ...EMPTY_LP, ...lp, 
+    header: { ...EMPTY_HEADER, ...(lp.header || {}), menuItems: lp.header?.menuItems || [], timerPeriodDays: lp.header?.timerPeriodDays ?? 3 }, 
+    footerCta: { ...EMPTY_FOOTER_CTA, ...(lp.footerCta || {}), widthPercent: lp.footerCta?.widthPercent ?? 90, bottomMargin: lp.footerCta?.bottomMargin ?? 20, showAfterPx: lp.footerCta?.showAfterPx ?? 0, hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0 }, 
+    tracking: { gtm: '', pixel: '', meta: '', useDefault: true, ...(lp.tracking || {}) }, 
+    images: lp.images || [], 
+    pageTitle: lp.pageTitle ?? '', customHeadCode: lp.customHeadCode ?? '', customMetaDescription: lp.customMetaDescription ?? '', customFavicon: lp.customFavicon ?? '', customOgpImage: lp.customOgpImage ?? '', customCss: lp.customCss ?? '',
+    pcBackgroundImage: lp.pcBackgroundImage ?? '',
+    sideImages: {
+      leftSrc: lp.sideImages?.leftSrc ?? '',
+      rightSrc: lp.sideImages?.rightSrc ?? '',
+      widthPercent: lp.sideImages?.widthPercent ?? 15,
+      verticalAlign: lp.sideImages?.verticalAlign ?? 'top'
+    }
+  };
 };
 
 const normalizeGlobal = (g: Partial<GlobalSettings>): GlobalSettings => {
-  return { ...EMPTY_GLOBAL, ...g };
+  return { 
+    ...EMPTY_GLOBAL, ...g,
+    animationEnabled: g.animationEnabled ?? true,
+    animationDuration: g.animationDuration ?? 0.6,
+    animationDelay: g.animationDelay ?? 0.1,
+    pcMaxWidth: g.pcMaxWidth ?? 480,
+    pcBackgroundImage: g.pcBackgroundImage ?? ''
+  };
 };
 
 const LoadingOverlay = ({ isVisible }: { isVisible: boolean }) => {
@@ -51,11 +83,15 @@ export default function CmsPage() {
   const [lps, setLps] = useState<LpData[]>([]);
   const [editingLp, setEditingLp] = useState<LpData | null>(null);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
-  // ★変更検知用State
+  // 変更検知用State
   const [initialGlobalSettings, setInitialGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
   const [loading, setLoading] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [onLibrarySelect, setOnLibrarySelect] = useState<((url: string) => void) | null>(null);
+
+  // ★アコーディオン開閉状態
+  const [isGlobalAdvancedOpen, setIsGlobalAdvancedOpen] = useState(false);
+  const [isLpAdvancedOpen, setIsLpAdvancedOpen] = useState(false);
 
   const openLibrary = (callback: (url: string) => void) => {
     setOnLibrarySelect(() => callback);
@@ -77,8 +113,12 @@ export default function CmsPage() {
     const newPass = await generateRandomPassword();
     const newLp = normalizeLp({ id: crypto.randomUUID(), slug: `new-${Date.now()}`, password: newPass, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     setEditingLp(newLp);
+    setIsLpAdvancedOpen(false); // 新規作成時は閉じる
   };
-  const handleEdit = (lp: LpData) => setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
+  const handleEdit = (lp: LpData) => {
+    setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
+    setIsLpAdvancedOpen(false); // 編集開始時は閉じる
+  };
   const handleDuplicate = async (id: string) => { if (!confirm('このプロジェクトを複製しますか？')) return; setLoading(true); try { await duplicateLp(id); await loadData(); alert('プロジェクトを複製しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
   const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
   const handleSaveAndClose = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); alert('LPを保存しました'); setEditingLp(null); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
@@ -152,6 +192,16 @@ export default function CmsPage() {
     setLoading(true);
     try { const src = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, footerCta: { ...editingLp.footerCta, imageSrc: src } }); } finally { setLoading(false); }
   };
+  // ★サイド画像アップロード用
+  const handleSideImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, side: 'left' | 'right') => {
+    if (!e.target.files?.[0] || !editingLp) return;
+    setLoading(true);
+    try { 
+      const src = await handleUpload(e.target.files[0]); 
+      const sideImages = editingLp.sideImages || { leftSrc: '', rightSrc: '', widthPercent: 15, verticalAlign: 'top' };
+      setEditingLp({ ...editingLp, sideImages: { ...sideImages, [side === 'left' ? 'leftSrc' : 'rightSrc']: src } }); 
+    } finally { setLoading(false); }
+  };
 
   // --- Sub-item Editors ---
   const addMenuItem = () => { if (!editingLp) return; setEditingLp({ ...editingLp, header: { ...editingLp.header, menuItems: [...(editingLp.header.menuItems || []), { label: '', href: '' }] } }); };
@@ -178,7 +228,6 @@ export default function CmsPage() {
       <LoadingOverlay isVisible={loading} />
       <ImageLibrary isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(url) => onLibrarySelect?.(url)} />
       
-      {/* ★修正: ヘッダーのマージン・パディング調整 */}
       <div className={styles.header} style={{
         position: 'sticky',
         top: 0,
@@ -186,17 +235,15 @@ export default function CmsPage() {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(4px)',
         borderBottom: '1px solid #e5e5e5',
-        // --- 調整箇所 ---
         paddingTop: '24px',
         paddingBottom: '24px',
-        marginTop: '-32px', // コンテナの余白を打ち消す（状況に応じて数値を調整してください）
+        marginTop: '-32px', 
         marginBottom: '32px',
-        marginLeft: '-32px', // 左右いっぱいに広げる
+        marginLeft: '-32px', 
         marginRight: '-32px',
-        paddingLeft: '32px', // 広げた分、内側に戻す
+        paddingLeft: '32px', 
         paddingRight: '32px'
       }}>
-        {/* h1の余白を消してバーの中央に */}
         <h1 className={styles.pageTitle} style={{margin:0}}>爆速画像LPコーディングPRO</h1>
         
         {editingLp && (
@@ -221,6 +268,10 @@ export default function CmsPage() {
              removeMenuItem={removeMenuItem} moveMenuItem={moveMenuItem} updateImageId={updateImageId} addLink={addLink}
              updateLink={updateLink} removeLink={removeLink} STATUS_LABELS={STATUS_LABELS}
              styles={styles}
+             // ★追加Props
+             isLpAdvancedOpen={isLpAdvancedOpen}
+             setIsLpAdvancedOpen={setIsLpAdvancedOpen}
+             handleSideImageUpload={handleSideImageUpload}
            />
         </>
       ) : (
@@ -229,6 +280,9 @@ export default function CmsPage() {
           handleCreate={handleCreate} handleEdit={handleEdit} handleDuplicate={handleDuplicate} handleGlobalUpload={handleGlobalUpload}
           openLibrary={openLibrary} formatDate={formatDate} STATUS_LABELS={STATUS_LABELS} loading={loading}
           styles={styles}
+          // ★追加Props
+          isGlobalAdvancedOpen={isGlobalAdvancedOpen}
+          setIsGlobalAdvancedOpen={setIsGlobalAdvancedOpen}
         />
       )}
     </div>
