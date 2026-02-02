@@ -60,7 +60,6 @@ export type TrackingConfig = {
   useDefault: boolean;
 };
 
-// ★更新: 詳細設定用のフィールドを追加
 export type GlobalSettings = {
   defaultGtm: string;
   defaultPixel: string;
@@ -70,7 +69,6 @@ export type GlobalSettings = {
   defaultOgpImage: string;
   autoWebp: boolean;
   webpQuality: number;
-  // 追加フィールド
   animationEnabled: boolean;
   animationDuration: number;
   animationDelay: number;
@@ -78,14 +76,18 @@ export type GlobalSettings = {
   pcBackgroundImage: string;
 };
 
-export type SideImagesConfig = {
-  leftSrc: string;
-  rightSrc: string;
+// ★更新: サイド画像の個別設定用型定義
+export type SideImageSettings = {
+  src: string;
   widthPercent: number;
   verticalAlign: 'top' | 'center';
 };
 
-// ★更新: 詳細設定用のフィールドを追加
+export type SideImagesConfig = {
+  left: SideImageSettings;
+  right: SideImageSettings;
+};
+
 export type LpData = {
   id: string;
   slug: string;
@@ -102,9 +104,8 @@ export type LpData = {
   customFavicon?: string;
   customOgpImage?: string;
   customCss?: string;
-  // 追加フィールド
-  pcBackgroundImage?: string; // 上書き用
-  sideImages?: SideImagesConfig;
+  pcBackgroundImage?: string;
+  sideImages?: SideImagesConfig; // 構造を変更
   createdAt: string;
   updatedAt: string;
 };
@@ -123,7 +124,6 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     defaultOgpImage: '',
     autoWebp: false,
     webpQuality: 75,
-    // 追加フィールドのデフォルト値
     animationEnabled: true,
     animationDuration: 0.6,
     animationDelay: 0.1,
@@ -145,51 +145,7 @@ export async function getLps() {
   const lps = await redis.get<any[]>(KEY_LPS) || [];
   
   return lps.map(lp => {
-    const headerDefaults: HeaderConfig = {
-      type: 'none',
-      timerPeriodDays: 3,
-      logoSrc: '',
-      menuItems: []
-    };
-    
-    const footerDefaults: FooterCtaConfig = {
-      enabled: false,
-      imageSrc: '',
-      href: '',
-      widthPercent: 90,
-      bottomMargin: 20,
-      showAfterPx: 0,
-      hideBeforeBottomPx: 0
-    };
-
-    if (!lp.header) {
-      lp.header = {
-        ...headerDefaults,
-        type: lp.timer?.enabled ? 'timer' : 'none',
-        timerPeriodDays: lp.timer?.periodDays ?? 3,
-      };
-    } else {
-      lp.header = { ...headerDefaults, ...lp.header };
-    }
-
-    if (!lp.footerCta) {
-      lp.footerCta = { ...footerDefaults };
-    } else {
-      lp.footerCta = { ...footerDefaults, ...lp.footerCta };
-    }
-
-    if (!lp.pageTitle) lp.pageTitle = '';
-    
-    // サイド画像の初期化
-    if (!lp.sideImages) {
-      lp.sideImages = {
-        leftSrc: '',
-        rightSrc: '',
-        widthPercent: 15,
-        verticalAlign: 'top'
-      };
-    }
-
+    // 既存のnormalizeロジック等はpage.tsx側でも厳密に行うが、ここでも最低限の型合わせを行う
     return lp as LpData;
   });
 }
@@ -205,6 +161,7 @@ export async function saveLp(lp: LpData) {
 
   const now = new Date().toISOString();
 
+  // データのサニタイズと正規化
   const safeLp: LpData = {
     ...lp,
     header: {
@@ -222,11 +179,18 @@ export async function saveLp(lp: LpData) {
       showAfterPx: lp.footerCta?.showAfterPx ?? 0,
       hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0
     },
+    // ★更新: サイド画像設定の保存
     sideImages: {
-      leftSrc: lp.sideImages?.leftSrc || '',
-      rightSrc: lp.sideImages?.rightSrc || '',
-      widthPercent: lp.sideImages?.widthPercent ?? 15,
-      verticalAlign: lp.sideImages?.verticalAlign || 'top'
+      left: {
+        src: lp.sideImages?.left?.src || '',
+        widthPercent: lp.sideImages?.left?.widthPercent ?? 15,
+        verticalAlign: lp.sideImages?.left?.verticalAlign || 'top'
+      },
+      right: {
+        src: lp.sideImages?.right?.src || '',
+        widthPercent: lp.sideImages?.right?.widthPercent ?? 15,
+        verticalAlign: lp.sideImages?.right?.verticalAlign || 'top'
+      }
     },
     pcBackgroundImage: lp.pcBackgroundImage || '',
     customCss: lp.customCss || ''
@@ -260,21 +224,17 @@ export async function deleteLp(id: string) {
   return { success: true };
 }
 
-// 複製機能
 export async function duplicateLp(sourceId: string) {
   const lps = await getLps();
   const sourceLp = lps.find(item => item.id === sourceId);
   if (!sourceLp) throw new Error('コピー元のLPが見つかりません');
 
-  // データのディープコピー（参照を切るため）
   const newLp = JSON.parse(JSON.stringify(sourceLp)) as LpData;
 
-  // タイトル決定ロジック
   const baseTitle = `${sourceLp.title}のコピー`;
   let newTitle = baseTitle;
   let count = 1;
 
-  // 同名のタイトルが存在するかチェックし、あれば番号を振る
   while (lps.some(item => item.title === newTitle)) {
     newTitle = `${baseTitle}${count}`;
     count++;
@@ -282,18 +242,14 @@ export async function duplicateLp(sourceId: string) {
 
   const now = new Date().toISOString();
 
-  // 新しいプロパティの設定
   newLp.id = crypto.randomUUID();
   newLp.title = newTitle;
-  // スラッグは一意である必要があるため、タイムスタンプを付与
   newLp.slug = `${sourceLp.slug}-copy-${Date.now().toString(36)}`;
-  newLp.status = 'draft'; // 下書きにする
+  newLp.status = 'draft';
   newLp.createdAt = now;
   newLp.updatedAt = now;
-  // パスワードも再生成
   newLp.password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
 
-  // リストに追加して保存
   lps.push(newLp);
   await redis.set(KEY_LPS, lps);
   revalidatePath('/cms');
@@ -316,8 +272,7 @@ export async function generateRandomPassword() {
   return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
 }
 
-//アップロード済み画像リストの取得
 export async function getBlobList() {
-  const { blobs } = await list({ limit: 100 }); // 最新100件を取得
+  const { blobs } = await list({ limit: 100 });
   return blobs.map(b => b.url);
 }

@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { LpData, GlobalSettings } from '../actions';
 
 type Props = {
@@ -17,7 +17,6 @@ type Props = {
   STATUS_LABELS: Record<string, string>;
   loading: boolean;
   styles: any;
-  // ★追加: アコーディオン制御
   isGlobalAdvancedOpen: boolean;
   setIsGlobalAdvancedOpen: (v: boolean) => void;
 };
@@ -28,6 +27,27 @@ export const CmsDashboard = ({
   openLibrary, formatDate, STATUS_LABELS, loading, styles,
   isGlobalAdvancedOpen, setIsGlobalAdvancedOpen
 }: Props) => {
+
+  // 検索・フィルターステート
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showPublicOnly, setShowPublicOnly] = useState(false);
+
+  // フィルタリング処理
+  const filteredLps = useMemo(() => {
+    return lps.filter(lp => {
+      // 公開中フィルター
+      if (showPublicOnly && lp.status !== 'public') return false;
+      
+      // キーワード検索
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        lp.title.toLowerCase().includes(term) ||
+        (lp.pageTitle || '').toLowerCase().includes(term) ||
+        lp.slug.toLowerCase().includes(term)
+      );
+    });
+  }, [lps, searchTerm, showPublicOnly]);
 
   const isDirty = useMemo(() => {
     return JSON.stringify(globalSettings) !== JSON.stringify(initialGlobalSettings);
@@ -139,7 +159,6 @@ export const CmsDashboard = ({
           </div>
         </div>
 
-        {/* ★追加: 詳細設定（アコーディオン） */}
         <div className={styles.panel} style={{marginTop: '24px'}}>
           <div 
             onClick={() => setIsGlobalAdvancedOpen(!isGlobalAdvancedOpen)}
@@ -221,13 +240,35 @@ export const CmsDashboard = ({
       </div>
 
       <div className={styles.rightPane}>
-         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
-            <h3 className={styles.sectionTitle} style={{margin:0, border:0}}>プロジェクト一覧</h3>
-            <button onClick={handleCreate} className={`${styles.btn} ${styles.btnPrimary}`}>+ 新規LP作成</button>
+         {/* ★修正: ヘッダー部分に検索とフィルターを追加 */}
+         <div style={{marginBottom:'24px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
+               <h3 className={styles.sectionTitle} style={{margin:0, border:0}}>プロジェクト一覧</h3>
+               {/* 以前のボタン配置場所（削除済み） */}
+            </div>
+            
+            <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
+               <input 
+                  type="text" 
+                  placeholder="プロジェクトを検索 (名前・URL)" 
+                  className={styles.input}
+                  style={{marginBottom:0}}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+               />
+               <label className={styles.checkboxGroup} style={{whiteSpace:'nowrap', marginBottom:0, userSelect:'none'}}>
+                  <input 
+                    type="checkbox" 
+                    checked={showPublicOnly}
+                    onChange={e => setShowPublicOnly(e.target.checked)}
+                  />
+                  公開中のみ表示
+               </label>
+            </div>
          </div>
 
          <div className={styles.lpList}>
-           {lps.map(lp => (
+           {filteredLps.map(lp => (
              <div key={lp.id} className={styles.lpCard}>
                <div className={styles.lpCardHeader}>
                  <h2 className={styles.lpTitle}>{lp.title}</h2>
@@ -254,9 +295,9 @@ export const CmsDashboard = ({
              </div>
            ))}
 
-           {lps.length === 0 && (
+           {filteredLps.length === 0 && (
              <p style={{color:'#888', gridColumn:'1/-1', textAlign:'center', padding:'40px'}}>
-               まだプロジェクトがありません。「新規LP作成」から始めましょう。
+               {lps.length === 0 ? 'まだプロジェクトがありません。「新規LP作成」から始めましょう。' : '条件に一致するプロジェクトが見つかりませんでした。'}
              </p>
            )}
          </div>

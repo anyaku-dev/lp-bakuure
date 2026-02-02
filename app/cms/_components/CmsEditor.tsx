@@ -25,18 +25,16 @@ type Props = {
   removeLink: (imgIndex: number, linkIndex: number) => void;
   STATUS_LABELS: Record<string, string>;
   styles: any;
-  // アコーディオン制御・ハンドラ
+  // ★追加: アコーディオン制御・ハンドラ
   isLpAdvancedOpen: boolean;
   setIsLpAdvancedOpen: (v: boolean) => void;
   handleSideImageUpload: (e: React.ChangeEvent<HTMLInputElement>, side: 'left' | 'right') => void;
 };
 
-// ★追加: デフォルトのサイド画像設定（型エラー回避用）
+// デフォルトのサイド画像設定（型エラー回避用）
 const DEFAULT_SIDE_IMAGES = {
-  leftSrc: '',
-  rightSrc: '',
-  widthPercent: 15,
-  verticalAlign: 'top' as const
+  left: { src: '', widthPercent: 15, verticalAlign: 'top' as const },
+  right: { src: '', widthPercent: 15, verticalAlign: 'top' as const }
 };
 
 export const CmsEditor = ({
@@ -51,6 +49,7 @@ export const CmsEditor = ({
 }: Props) => {
   const h = editingLp.header;
   const f = editingLp.footerCta;
+  const sideImages = editingLp.sideImages || DEFAULT_SIDE_IMAGES;
 
   return (
     <div className={styles.splitLayout}>
@@ -216,52 +215,72 @@ export const CmsEditor = ({
 
               <div style={{borderTop:'1px dotted #eee', margin:'16px 0'}}></div>
 
-              {/* 左画像 */}
+              {/* 左画像設定 */}
               <div className={styles.row}>
                 <label className={styles.label}>左サイド画像</label>
                 <div style={{display:'flex', gap:8}}>
                    <input type="file" className={styles.input} accept="image/*" onChange={e => handleSideImageUpload(e, 'left')} style={{flex:1}} />
-                   {/* ★修正: DEFAULT_SIDE_IMAGES を使用して型エラーを回避 */}
-                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), leftSrc: url}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...sideImages, left: {...sideImages.left, src: url}}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
                 </div>
-                {editingLp.sideImages?.leftSrc && <img src={editingLp.sideImages.leftSrc} alt="left" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+                {sideImages.left.src && <img src={sideImages.left.src} alt="left" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+                
+                <div className={styles.grid2} style={{marginTop:8}}>
+                   <div>
+                      <label className={styles.label} style={{fontSize:12}}>幅 (%)</label>
+                      <input 
+                        type="number" className={styles.input} 
+                        value={sideImages.left.widthPercent}
+                        onChange={e => setEditingLp({...editingLp, sideImages: {...sideImages, left: {...sideImages.left, widthPercent: Number(e.target.value)}}})} 
+                      />
+                   </div>
+                   <div>
+                      <label className={styles.label} style={{fontSize:12}}>縦揃え</label>
+                      <select 
+                        className={styles.select}
+                        value={sideImages.left.verticalAlign}
+                        onChange={e => setEditingLp({...editingLp, sideImages: {...sideImages, left: {...sideImages.left, verticalAlign: e.target.value as any}}})} 
+                      >
+                         <option value="top">上揃え (Top)</option>
+                         <option value="center">中央揃え (Center)</option>
+                      </select>
+                   </div>
+                </div>
               </div>
 
-              {/* 右画像 */}
+              <div style={{borderTop:'1px dotted #eee', margin:'16px 0'}}></div>
+
+              {/* 右画像設定 */}
               <div className={styles.row}>
                 <label className={styles.label}>右サイド画像</label>
                 <div style={{display:'flex', gap:8}}>
                    <input type="file" className={styles.input} accept="image/*" onChange={e => handleSideImageUpload(e, 'right')} style={{flex:1}} />
-                   {/* ★修正: DEFAULT_SIDE_IMAGES を使用して型エラーを回避 */}
-                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), rightSrc: url}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
+                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...sideImages, right: {...sideImages.right, src: url}}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
                 </div>
-                {editingLp.sideImages?.rightSrc && <img src={editingLp.sideImages.rightSrc} alt="right" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+                {sideImages.right.src && <img src={sideImages.right.src} alt="right" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+                
+                <div className={styles.grid2} style={{marginTop:8}}>
+                   <div>
+                      <label className={styles.label} style={{fontSize:12}}>幅 (%)</label>
+                      <input 
+                        type="number" className={styles.input} 
+                        value={sideImages.right.widthPercent}
+                        onChange={e => setEditingLp({...editingLp, sideImages: {...sideImages, right: {...sideImages.right, widthPercent: Number(e.target.value)}}})} 
+                      />
+                   </div>
+                   <div>
+                      <label className={styles.label} style={{fontSize:12}}>縦揃え</label>
+                      <select 
+                        className={styles.select}
+                        value={sideImages.right.verticalAlign}
+                        onChange={e => setEditingLp({...editingLp, sideImages: {...sideImages, right: {...sideImages.right, verticalAlign: e.target.value as any}}})} 
+                      >
+                         <option value="top">上揃え (Top)</option>
+                         <option value="center">中央揃え (Center)</option>
+                      </select>
+                   </div>
+                </div>
               </div>
 
-              {/* 設定 */}
-              <div className={styles.grid2}>
-                 <div>
-                    <label className={styles.label}>画像の幅 (%)</label>
-                    <input 
-                      type="number" className={styles.input} 
-                      value={editingLp.sideImages?.widthPercent ?? 15}
-                      // ★修正: DEFAULT_SIDE_IMAGES を使用
-                      onChange={e => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), widthPercent: Number(e.target.value)}})} 
-                    />
-                 </div>
-                 <div>
-                    <label className={styles.label}>縦位置揃え</label>
-                    <select 
-                      className={styles.select}
-                      value={editingLp.sideImages?.verticalAlign ?? 'top'}
-                      // ★修正: DEFAULT_SIDE_IMAGES を使用
-                      onChange={e => setEditingLp({...editingLp, sideImages: {...(editingLp.sideImages || DEFAULT_SIDE_IMAGES), verticalAlign: e.target.value as any}})} 
-                    >
-                       <option value="top">上揃え (Top)</option>
-                       <option value="center">中央揃え (Center)</option>
-                    </select>
-                 </div>
-              </div>
             </div>
           )}
         </div>

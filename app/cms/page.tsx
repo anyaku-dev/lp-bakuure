@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   getLps, saveLp, uploadImage, generateRandomPassword, deleteLp, duplicateLp,
   getGlobalSettings, saveGlobalSettings,
-  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig
+  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig, SideImagesConfig
 } from './actions';
 import { compressImage } from '../plugin/compressImage';
 import { ImageLibrary } from './_components/ImageLibrary';
@@ -31,13 +31,18 @@ const STATUS_LABELS = {
 // --- 初期値と正規化関数 ---
 const EMPTY_HEADER: HeaderConfig = { type: 'none', timerPeriodDays: 3, logoSrc: '', menuItems: [] };
 const EMPTY_FOOTER_CTA: FooterCtaConfig = { enabled: false, imageSrc: '', href: '', widthPercent: 90, bottomMargin: 20, showAfterPx: 0, hideBeforeBottomPx: 0 };
+const EMPTY_SIDE_IMAGES: SideImagesConfig = {
+  left: { src: '', widthPercent: 15, verticalAlign: 'top' },
+  right: { src: '', widthPercent: 15, verticalAlign: 'top' }
+};
+
 const EMPTY_LP: LpData = { 
   id: '', slug: '', title: '新規LPプロジェクト', pageTitle: '', status: 'draft', images: [], 
   header: { ...EMPTY_HEADER }, footerCta: { ...EMPTY_FOOTER_CTA }, 
   tracking: { gtm: '', pixel: '', meta: '', useDefault: true }, 
   customCss: '', createdAt: '', updatedAt: '', 
   pcBackgroundImage: '', 
-  sideImages: { leftSrc: '', rightSrc: '', widthPercent: 15, verticalAlign: 'top' } 
+  sideImages: { ...EMPTY_SIDE_IMAGES } 
 };
 const EMPTY_GLOBAL: GlobalSettings = { 
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
@@ -46,6 +51,25 @@ const EMPTY_GLOBAL: GlobalSettings = {
 };
 
 const normalizeLp = (lp: Partial<LpData>): LpData => {
+  // サイド画像のデータ構造マイグレーション（旧データ -> 新データ）
+  const sideImagesRaw = lp.sideImages as any;
+  let sideImages: SideImagesConfig;
+
+  if (sideImagesRaw && (sideImagesRaw.left || sideImagesRaw.right)) {
+      // 既に新フォーマットの場合
+      sideImages = {
+          left: { src: sideImagesRaw.left?.src ?? '', widthPercent: sideImagesRaw.left?.widthPercent ?? 15, verticalAlign: sideImagesRaw.left?.verticalAlign ?? 'top' },
+          right: { src: sideImagesRaw.right?.src ?? '', widthPercent: sideImagesRaw.right?.widthPercent ?? 15, verticalAlign: sideImagesRaw.right?.verticalAlign ?? 'top' }
+      };
+  } else {
+      // 旧フォーマット、または未定義の場合
+      const old = sideImagesRaw || {};
+      sideImages = {
+          left: { src: old.leftSrc ?? '', widthPercent: old.widthPercent ?? 15, verticalAlign: old.verticalAlign ?? 'top' },
+          right: { src: old.rightSrc ?? '', widthPercent: old.widthPercent ?? 15, verticalAlign: old.verticalAlign ?? 'top' }
+      };
+  }
+
   return { 
     ...EMPTY_LP, ...lp, 
     header: { ...EMPTY_HEADER, ...(lp.header || {}), menuItems: lp.header?.menuItems || [], timerPeriodDays: lp.header?.timerPeriodDays ?? 3 }, 
@@ -54,12 +78,7 @@ const normalizeLp = (lp: Partial<LpData>): LpData => {
     images: lp.images || [], 
     pageTitle: lp.pageTitle ?? '', customHeadCode: lp.customHeadCode ?? '', customMetaDescription: lp.customMetaDescription ?? '', customFavicon: lp.customFavicon ?? '', customOgpImage: lp.customOgpImage ?? '', customCss: lp.customCss ?? '',
     pcBackgroundImage: lp.pcBackgroundImage ?? '',
-    sideImages: {
-      leftSrc: lp.sideImages?.leftSrc ?? '',
-      rightSrc: lp.sideImages?.rightSrc ?? '',
-      widthPercent: lp.sideImages?.widthPercent ?? 15,
-      verticalAlign: lp.sideImages?.verticalAlign ?? 'top'
-    }
+    sideImages: sideImages
   };
 };
 
@@ -89,7 +108,7 @@ export default function CmsPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [onLibrarySelect, setOnLibrarySelect] = useState<((url: string) => void) | null>(null);
 
-  // ★アコーディオン開閉状態
+  // アコーディオン開閉状態
   const [isGlobalAdvancedOpen, setIsGlobalAdvancedOpen] = useState(false);
   const [isLpAdvancedOpen, setIsLpAdvancedOpen] = useState(false);
 
@@ -105,7 +124,7 @@ export default function CmsPage() {
     setLps(lpsData.map(normalizeLp));
     const normalizedSettings = normalizeGlobal(settingsData);
     setGlobalSettings(normalizedSettings);
-    setInitialGlobalSettings(normalizedSettings); // 初期値を保存
+    setInitialGlobalSettings(normalizedSettings); 
   };
 
   // --- Actions ---
@@ -113,11 +132,11 @@ export default function CmsPage() {
     const newPass = await generateRandomPassword();
     const newLp = normalizeLp({ id: crypto.randomUUID(), slug: `new-${Date.now()}`, password: newPass, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     setEditingLp(newLp);
-    setIsLpAdvancedOpen(false); // 新規作成時は閉じる
+    setIsLpAdvancedOpen(false); 
   };
   const handleEdit = (lp: LpData) => {
     setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
-    setIsLpAdvancedOpen(false); // 編集開始時は閉じる
+    setIsLpAdvancedOpen(false); 
   };
   const handleDuplicate = async (id: string) => { if (!confirm('このプロジェクトを複製しますか？')) return; setLoading(true); try { await duplicateLp(id); await loadData(); alert('プロジェクトを複製しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
   const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
@@ -127,7 +146,7 @@ export default function CmsPage() {
     setLoading(true); 
     try { 
       await saveGlobalSettings(globalSettings); 
-      setInitialGlobalSettings(globalSettings); // 保存したら初期値を更新
+      setInitialGlobalSettings(globalSettings); 
       alert('全体設定を保存しました'); 
     } catch (e: any) { 
       alert('エラー: ' + e.message); 
@@ -138,7 +157,7 @@ export default function CmsPage() {
   
   const handleDeleteLp = async () => { if (!editingLp) return; if (!confirm('本当にこのLPを削除しますか？')) return; setLoading(true); try { await deleteLp(editingLp.id); await loadData(); alert('LPを削除しました'); setEditingLp(null); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
 
-  // --- Upload Handling (Auto WebP Logic) ---
+  // --- Upload Handling ---
   const handleUpload = async (file: File) => {
     let uploadFile = file;
     if (globalSettings.autoWebp) {
@@ -192,14 +211,22 @@ export default function CmsPage() {
     setLoading(true);
     try { const src = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, footerCta: { ...editingLp.footerCta, imageSrc: src } }); } finally { setLoading(false); }
   };
-  // ★サイド画像アップロード用
+  // ★サイド画像アップロード用（左右対応）
   const handleSideImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, side: 'left' | 'right') => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
     try { 
       const src = await handleUpload(e.target.files[0]); 
-      const sideImages = editingLp.sideImages || { leftSrc: '', rightSrc: '', widthPercent: 15, verticalAlign: 'top' };
-      setEditingLp({ ...editingLp, sideImages: { ...sideImages, [side === 'left' ? 'leftSrc' : 'rightSrc']: src } }); 
+      const currentSideImages = editingLp.sideImages || { ...EMPTY_SIDE_IMAGES };
+      const targetSide = currentSideImages[side];
+      
+      setEditingLp({ 
+        ...editingLp, 
+        sideImages: { 
+          ...currentSideImages, 
+          [side]: { ...targetSide, src: src }
+        } 
+      }); 
     } finally { setLoading(false); }
   };
 
@@ -228,31 +255,39 @@ export default function CmsPage() {
       <LoadingOverlay isVisible={loading} />
       <ImageLibrary isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(url) => onLibrarySelect?.(url)} />
       
+      {/* ★修正: ヘッダーをposition: fixedにしてマージン0を強制 */}
       <div className={styles.header} style={{
-        position: 'sticky',
+        position: 'fixed',
         top: 0,
+        left: 0,
+        right: 0,
+        width: '100%',
         zIndex: 1000,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(4px)',
         borderBottom: '1px solid #e5e5e5',
-        paddingTop: '24px',
-        paddingBottom: '24px',
-        marginTop: '-32px', 
-        marginBottom: '32px',
-        marginLeft: '-32px', 
-        marginRight: '-32px',
-        paddingLeft: '32px', 
-        paddingRight: '32px'
+        padding: '16px 32px',
+        margin: 0,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxSizing: 'border-box'
       }}>
         <h1 className={styles.pageTitle} style={{margin:0}}>爆速画像LPコーディングPRO</h1>
         
-        {editingLp && (
+        {editingLp ? (
           <div className={styles.flexGap}>
              <button onClick={() => setEditingLp(null)} className={`${styles.btn} ${styles.btnSecondary}`}>キャンセル</button>
              <button onClick={handleSaveAndClose} disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`}>保存</button>
           </div>
+        ) : (
+          /* ★追加: ダッシュボード時にヘッダーに「+ 新規LP作成」を表示 */
+          <button onClick={handleCreate} className={`${styles.btn} ${styles.btnPrimary}`}>+ 新規LP作成</button>
         )}
       </div>
+
+      {/* ヘッダーの高さ分のスペーサー */}
+      <div style={{height: '80px'}}></div>
 
       {editingLp ? (
         <>
@@ -268,7 +303,6 @@ export default function CmsPage() {
              removeMenuItem={removeMenuItem} moveMenuItem={moveMenuItem} updateImageId={updateImageId} addLink={addLink}
              updateLink={updateLink} removeLink={removeLink} STATUS_LABELS={STATUS_LABELS}
              styles={styles}
-             // ★追加Props
              isLpAdvancedOpen={isLpAdvancedOpen}
              setIsLpAdvancedOpen={setIsLpAdvancedOpen}
              handleSideImageUpload={handleSideImageUpload}
@@ -280,7 +314,6 @@ export default function CmsPage() {
           handleCreate={handleCreate} handleEdit={handleEdit} handleDuplicate={handleDuplicate} handleGlobalUpload={handleGlobalUpload}
           openLibrary={openLibrary} formatDate={formatDate} STATUS_LABELS={STATUS_LABELS} loading={loading}
           styles={styles}
-          // ★追加Props
           isGlobalAdvancedOpen={isGlobalAdvancedOpen}
           setIsGlobalAdvancedOpen={setIsGlobalAdvancedOpen}
         />
