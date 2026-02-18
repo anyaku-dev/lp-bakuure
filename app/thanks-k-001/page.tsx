@@ -42,234 +42,131 @@ export default function ThanksPage() {
       <main
         style={{
           minHeight: '100dvh',
-          background: 'linear-gradient(180deg, #f8f6f3 0%, #fff 40%, #f8f6f3 100%)',
+          background: '#fff',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '0 16px',
+          padding: '0 20px',
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif',
         }}
       >
         {/* ロゴ */}
-        <div style={{ marginTop: 40, marginBottom: 8 }}>
-          <Image
+        <div style={{ marginTop: 48, marginBottom: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/bakuure-logo-new.png"
             alt="バク売れLPテンプレ"
-            width={180}
-            height={50}
-            style={{ height: 'auto', width: 180 }}
-            priority
+            width={160}
+            height={60}
+            style={{ height: 'auto', width: 160 }}
           />
         </div>
 
-        {/* 完了アイコン + バッジ */}
-        <div
-          style={{
-            marginTop: 32,
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(16,185,129,0.25)',
-          }}
-        >
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5 13l4 4L19 7"
-              stroke="#fff"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+        {/* 区切り線 */}
+        <div style={{ width: 40, height: 1, background: '#d4d4d4', margin: '32px 0' }} />
 
         {/* メインメッセージ */}
         <h1
           style={{
-            marginTop: 24,
-            fontSize: 22,
-            fontWeight: 700,
-            color: '#1a1a1a',
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 600,
+            color: '#111',
             textAlign: 'center',
-            lineHeight: 1.5,
-            letterSpacing: '0.02em',
+            lineHeight: 1.6,
+            letterSpacing: '0.04em',
           }}
         >
-          ご購入ありがとうございます！
+          ご購入ありがとうございます
         </h1>
 
-        <p
+        {/* イメージ画像（メッセージのすぐ下） */}
+        <div
           style={{
-            marginTop: 8,
-            fontSize: 14,
-            color: '#6b7280',
-            textAlign: 'center',
-            fontWeight: 500,
+            marginTop: 28,
+            width: '100%',
+            maxWidth: 380,
           }}
         >
-          決済が正常に完了しました
-        </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/image-01.jpg"
+            alt="バク売れLPテンプレート"
+            width={1024}
+            height={542}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </div>
 
-        {/* メール案内カード */}
+        {/* メール案内 */}
         <div
           style={{
             marginTop: 32,
             width: '100%',
-            maxWidth: 400,
-            background: '#fff',
-            borderRadius: 16,
-            padding: '28px 24px',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
-            border: '1px solid #f0ebe5',
+            maxWidth: 380,
           }}
         >
-          {/* メールアイコン */}
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 14,
-              background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-            }}
-          >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="4" width="20" height="16" rx="3" stroke="#7c3aed" strokeWidth="1.8" />
-              <path d="M2 7l10 6 10-6" stroke="#7c3aed" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-
-          <h2
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: '#1a1a1a',
-              textAlign: 'center',
-              marginBottom: 12,
-              lineHeight: 1.6,
-            }}
-          >
-            購入完了メールをご確認ください
-          </h2>
-
           <p
             style={{
               fontSize: 14,
-              lineHeight: 1.85,
-              color: '#4b5563',
+              lineHeight: 2,
+              color: '#333',
               textAlign: 'center',
+              margin: 0,
             }}
           >
-            ご購入いただき誠にありがとうございます。
+            購入完了メールを送信しております。
             <br />
-            ご登録いただいたメールアドレス宛に
-            <strong style={{ color: '#1a1a1a' }}>購入完了メール</strong>
-            を送信しております。
+            メール内にLPテンプレートの
+            <br />
+            ダウンロード方法をご案内しておりますので、
+            <br />
+            ご確認くださいませ。
           </p>
-
-          <div
-            style={{
-              marginTop: 16,
-              padding: '14px 16px',
-              background: '#faf5ff',
-              borderRadius: 10,
-              border: '1px solid #ede9fe',
-            }}
-          >
-            <p
-              style={{
-                fontSize: 13,
-                lineHeight: 1.8,
-                color: '#6d28d9',
-                textAlign: 'center',
-                fontWeight: 500,
-                margin: 0,
-              }}
-            >
-              📩 メール内に
-              <strong>LPテンプレートのダウンロード方法</strong>
-              をご案内しておりますので、ご確認くださいませ。
-            </p>
-          </div>
         </div>
 
         {/* 注意書き */}
         <div
           style={{
-            marginTop: 20,
+            marginTop: 28,
             width: '100%',
-            maxWidth: 400,
-            padding: '16px 20px',
-            background: '#fffbeb',
-            borderRadius: 12,
-            border: '1px solid #fde68a',
+            maxWidth: 380,
+            padding: '14px 16px',
+            background: '#fafafa',
+            border: '1px solid #e5e5e5',
           }}
         >
           <p
             style={{
               fontSize: 12,
-              lineHeight: 1.7,
-              color: '#92400e',
+              lineHeight: 1.8,
+              color: '#666',
               margin: 0,
+              textAlign: 'center',
             }}
           >
-            <strong>⚠ メールが届かない場合</strong>
+            メールが届かない場合は、
             <br />
-            迷惑メールフォルダやプロモーションタブもご確認ください。
-            数分経っても届かない場合は、お問い合わせくださいませ。
+            迷惑メールフォルダもご確認ください。
           </p>
-        </div>
-
-        {/* イメージ画像 */}
-        <div
-          style={{
-            marginTop: 36,
-            width: '100%',
-            maxWidth: 400,
-            borderRadius: 16,
-            overflow: 'hidden',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-          }}
-        >
-          <Image
-            src="/image-01.jpg"
-            alt="バク売れLPテンプレート イメージ"
-            width={800}
-            height={600}
-            style={{ width: '100%', height: 'auto', display: 'block' }}
-            priority
-          />
         </div>
 
         {/* フッター */}
         <footer
           style={{
-            marginTop: 48,
+            marginTop: 56,
             marginBottom: 40,
             textAlign: 'center',
           }}
         >
-          <Image
-            src="/bakuure-logo-new.png"
-            alt="バク売れLPテンプレ"
-            width={120}
-            height={34}
-            style={{ height: 'auto', width: 120, opacity: 0.5 }}
-          />
+          <div style={{ width: 32, height: 1, background: '#d4d4d4', margin: '0 auto 20px' }} />
           <p
             style={{
-              marginTop: 12,
-              fontSize: 11,
-              color: '#9ca3af',
-              lineHeight: 1.6,
+              margin: 0,
+              fontSize: 10,
+              color: '#aaa',
+              letterSpacing: '0.06em',
             }}
           >
             &copy; {new Date().getFullYear()} バク売れLPテンプレ
