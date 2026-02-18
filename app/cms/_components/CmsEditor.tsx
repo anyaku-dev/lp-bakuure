@@ -164,6 +164,26 @@ export const CmsEditor = ({
         </div>
 
         <div className={styles.panel}>
+          <h3 className={styles.sectionTitle}>リダイレクト設定</h3>
+          <p className={styles.subLabel} style={{marginBottom:'12px'}}>有効にすると、このページにアクセスした際に指定URLへ301リダイレクトされます。</p>
+          <div className={styles.row}>
+            <label className={styles.checkboxGroup} style={{fontSize:'15px'}}>
+              <input type="checkbox" checked={editingLp.redirect?.enabled ?? false} onChange={e => setEditingLp({...editingLp, redirect: { enabled: e.target.checked, url: editingLp.redirect?.url || '' }})} /> 301リダイレクトを有効にする
+            </label>
+          </div>
+          {editingLp.redirect?.enabled && (
+            <div style={{background:'#fff8f0', padding:'16px', borderRadius:'8px', marginBottom:'8px', border:'1px solid #f0d0a0'}}>
+              <div className={styles.row}>
+                <label className={styles.label}>リダイレクト先URL</label>
+                <input type="text" className={styles.input} placeholder="https://example.com/new-page" value={editingLp.redirect?.url ?? ''} onChange={e => setEditingLp({...editingLp, redirect: { ...editingLp.redirect!, url: e.target.value }})} />
+                <p className={styles.subLabel} style={{marginTop:4}}>※有効にすると、LPのコンテンツは表示されず指定URLへ転送されます</p>
+              </div>
+              <button onClick={() => setEditingLp({...editingLp, redirect: { enabled: false, url: '' }})} className={`${styles.btn} ${styles.btnDanger}`} style={{marginTop:'8px', padding:'6px 16px', fontSize:'13px'}}>リダイレクトを解除する</button>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.panel}>
           <h3 className={styles.sectionTitle}>メタデータ・タグ設定</h3>
           <div className={styles.row}><label className={styles.checkboxGroup}><input type="checkbox" checked={editingLp.tracking.useDefault} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, useDefault: e.target.checked}})} /> デフォルト設定を使用</label></div>
           {!editingLp.tracking.useDefault && ( <><div className={styles.row}><label className={styles.label}>GTM ID</label><input type="text" className={styles.input} value={editingLp.tracking.gtm ?? ''} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, gtm: e.target.value}})} /></div><div className={styles.row}><label className={styles.label}>Meta Pixel ID</label><input type="text" className={styles.input} value={editingLp.tracking.meta ?? ''} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, meta: e.target.value}})} /></div></> )}

@@ -21,6 +21,11 @@ export type TrackingConfig = {
   useDefault: boolean;
 };
 
+export type RedirectConfig = {
+  enabled: boolean;
+  url: string;
+};
+
 export type LpData = {
   id: string;
   slug: string;
@@ -30,6 +35,7 @@ export type LpData = {
   images: ImageData[];
   timer: { enabled: boolean; periodDays: number };
   tracking: TrackingConfig;
+  redirect?: RedirectConfig;
   updatedAt: string;
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import Script from 'next/script';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
 import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta } from './_components/LpClient';
@@ -55,6 +55,11 @@ export default async function DynamicLpPage({ params }: Props) {
   const { lp, globalSettings } = await getData(slug);
 
   if (!lp) return notFound();
+
+  // 301リダイレクト設定がある場合はリダイレクト
+  if (lp.redirect?.enabled && lp.redirect?.url) {
+    permanentRedirect(lp.redirect.url);
+  }
 
   const content = <LpContent lp={lp} globalSettings={globalSettings} />;
 

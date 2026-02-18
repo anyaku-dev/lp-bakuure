@@ -88,6 +88,11 @@ export type SideImagesConfig = {
   right: SideImageSettings;
 };
 
+export type RedirectConfig = {
+  enabled: boolean;
+  url: string;
+};
+
 export type LpData = {
   id: string;
   slug: string;
@@ -99,6 +104,7 @@ export type LpData = {
   header: HeaderConfig;
   footerCta: FooterCtaConfig;
   tracking: TrackingConfig;
+  redirect?: RedirectConfig;
   customHeadCode?: string;
   customMetaDescription?: string;
   customFavicon?: string;
@@ -191,6 +197,10 @@ export async function saveLp(lp: LpData) {
         widthPercent: lp.sideImages?.right?.widthPercent ?? 15,
         verticalAlign: lp.sideImages?.right?.verticalAlign || 'top'
       }
+    },
+    redirect: {
+      enabled: lp.redirect?.enabled ?? false,
+      url: lp.redirect?.url || ''
     },
     pcBackgroundImage: lp.pcBackgroundImage || '',
     customCss: lp.customCss || ''
