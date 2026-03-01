@@ -159,6 +159,34 @@ export const CmsDashboard = ({
           </div>
         </div>
 
+        <div className={styles.panel}>
+          <h3 className={styles.sectionTitle}>ルートドメインLP設定</h3>
+          <p className={styles.subLabel} style={{marginBottom:'16px'}}>
+            カスタムドメインのルート（例: lp.bakuure.com/）に表示するLPを選択します。<br/>
+            URLスラッグなしでルートドメインに直接LPを表示できます。
+          </p>
+          <div className={styles.row}>
+            <label className={styles.label}>ルートに表示するLP</label>
+            <select 
+              className={styles.select} 
+              value={globalSettings.homepageLpId ?? ''} 
+              onChange={e => setGlobalSettings({...globalSettings, homepageLpId: e.target.value})}
+            >
+              <option value="">-- 未設定（ルートにLPを表示しない）--</option>
+              {lps.filter(lp => lp.status === 'public').map(lp => (
+                <option key={lp.id} value={lp.id}>
+                  {lp.title} (/{lp.slug})
+                </option>
+              ))}
+            </select>
+            {globalSettings.homepageLpId && (
+              <p className={styles.subLabel} style={{marginTop:8, color:'#0071e3'}}>
+                ✓ ルートドメインにこのLPが表示されます
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className={styles.panel} style={{marginTop: '24px'}}>
           <div 
             onClick={() => setIsGlobalAdvancedOpen(!isGlobalAdvancedOpen)}

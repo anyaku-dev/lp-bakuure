@@ -47,7 +47,8 @@ const EMPTY_LP: LpData = {
 const EMPTY_GLOBAL: GlobalSettings = { 
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
   defaultFavicon: '', defaultOgpImage: '', autoWebp: false, webpQuality: 75,
-  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: ''
+  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: '',
+  homepageLpId: ''
 };
 
 const normalizeLp = (lp: Partial<LpData>): LpData => {

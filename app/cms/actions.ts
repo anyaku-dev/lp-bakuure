@@ -74,6 +74,7 @@ export type GlobalSettings = {
   animationDelay: number;
   pcMaxWidth: number;
   pcBackgroundImage: string;
+  homepageLpId: string;
 };
 
 // ★更新: サイド画像の個別設定用型定義
@@ -135,6 +136,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     animationDelay: 0.1,
     pcMaxWidth: 480,
     pcBackgroundImage: '',
+    homepageLpId: '',
     ...(settings || {})
   };
 }
@@ -142,6 +144,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
 export async function saveGlobalSettings(settings: GlobalSettings) {
   await redis.set(KEY_SETTINGS, settings);
   revalidatePath('/cms');
+  revalidatePath('/');
   return { success: true };
 }
 
@@ -223,6 +226,7 @@ export async function saveLp(lp: LpData) {
   await redis.set(KEY_LPS, lps);
   revalidatePath('/cms');
   revalidatePath(`/${lp.slug}`);
+  revalidatePath('/');
   return { success: true };
 }
 
