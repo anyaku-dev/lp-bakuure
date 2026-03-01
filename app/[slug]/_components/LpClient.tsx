@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
-import { MenuItem, FooterCtaConfig } from '../../cms/actions';
+import { MenuItem, FooterCtaConfig, SideImagesConfig } from '../../cms/actions';
 
 const jost = Jost({ subsets: ['latin'], weight: ['500'], display: 'swap' });
 const zenKaku = Zen_Kaku_Gothic_New({ subsets: ['latin'], weight: ['700'], display: 'swap' });
@@ -233,3 +233,88 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
     </div>
   );
 };
+
+// --- PC用背景画像 ---
+export function PcBackground({ src }: { src?: string }) {
+  if (!src) return null;
+  return (
+    <div
+      className="hidden md:block fixed inset-0 z-[-1]"
+      style={{
+        backgroundImage: `url(${src})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    />
+  );
+}
+
+// --- PC用サイド画像 ---
+export function SideImages({ config, pcMaxWidth }: { config?: SideImagesConfig; pcMaxWidth?: number }) {
+  if (!config) return null;
+  const hasLeft = !!config.left?.src;
+  const hasRight = !!config.right?.src;
+  if (!hasLeft && !hasRight) return null;
+
+  const contentWidth = pcMaxWidth || 480;
+
+  return (
+    <div className="hidden md:block fixed inset-0 z-[1] pointer-events-none" aria-hidden="true">
+      <div className="relative w-full h-full">
+        {hasLeft && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: `calc((100% - ${contentWidth}px) / 2)`,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: config.left.verticalAlign === 'center' ? 'center' : 'flex-start',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src={config.left.src}
+              alt=""
+              style={{
+                width: `${config.left.widthPercent}%`,
+                height: 'auto',
+                objectFit: 'contain',
+                maxHeight: '100%',
+              }}
+            />
+          </div>
+        )}
+        {hasRight && (
+          <div
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: `calc((100% - ${contentWidth}px) / 2)`,
+              display: 'flex',
+              justifyContent: 'flex-start',
+              alignItems: config.right.verticalAlign === 'center' ? 'center' : 'flex-start',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src={config.right.src}
+              alt=""
+              style={{
+                width: `${config.right.widthPercent}%`,
+                height: 'auto',
+                objectFit: 'contain',
+                maxHeight: '100%',
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

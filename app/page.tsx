@@ -3,7 +3,7 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from './cms/actions';
 import PasswordProtect from './[slug]/_components/PasswordProtect';
-import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta } from './[slug]/_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, PcBackground, SideImages } from './[slug]/_components/LpClient';
 import { Metadata } from 'next';
 
 async function getHomepageLp() {
@@ -86,6 +86,8 @@ function LpContent({ lp, globalSettings }: { lp: LpData; globalSettings: any }) 
     : lp.tracking;
 
   const headCode = lp.customHeadCode || globalSettings.defaultHeadCode || '';
+  const bgImage = lp.pcBackgroundImage || globalSettings.pcBackgroundImage || '';
+  const pcMaxWidth = globalSettings.pcMaxWidth || 480;
 
   return (
     <>
@@ -133,6 +135,9 @@ function LpContent({ lp, globalSettings }: { lp: LpData; globalSettings: any }) 
           `}
         </Script>
       )}
+
+      <PcBackground src={bgImage} />
+      <SideImages config={lp.sideImages} pcMaxWidth={pcMaxWidth} />
 
       <main className="min-h-screen bg-white">
         {lp.header?.type === 'timer' && (

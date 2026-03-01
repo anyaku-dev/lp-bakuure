@@ -3,7 +3,7 @@ import Script from 'next/script';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
-import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta } from './_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, PcBackground, SideImages } from './_components/LpClient';
 import { Metadata } from 'next';
 
 type Props = {
@@ -79,6 +79,8 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
   } : lp.tracking;
 
   const headCode = lp.customHeadCode || globalSettings.defaultHeadCode || '';
+  const bgImage = lp.pcBackgroundImage || globalSettings.pcBackgroundImage || '';
+  const pcMaxWidth = globalSettings.pcMaxWidth || 480;
 
   return (
     <>
@@ -127,6 +129,9 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         </Script>
       )}
 
+      <PcBackground src={bgImage} />
+      <SideImages config={lp.sideImages} pcMaxWidth={pcMaxWidth} />
+
       <main className="min-h-screen bg-white">
         {lp.header?.type === 'timer' && (
           <>
@@ -151,7 +156,6 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         )}
 
         {/* コンテンツ */}
-        {/* ★修正: flex flex-col を削除し、正常なLPと同じブロックレイアウトに戻しました */}
         <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
           {lp.images.map((img, index) => (
             <section key={index} className="w-full">
